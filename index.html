@@ -917,9 +917,16 @@
       warn.classList.add('hidden');
 
       el('heroLabel').textContent = state.mode === 'margin' ? 'Preço de venda recomendado' : 'Margem de lucro resultante';
-      el('heroValue').textContent = state.mode === 'margin' ? brl(r.price) : pct(r.margin * 100);
+      if (state.mode === 'price') {
+        el('heroValue').textContent = pct(r.margin * 100);
+        paintMargin(el('heroValue'), r.margin);
+      } else {
+        el('heroValue').textContent = brl(r.price);
+        clearMarginPaint(el('heroValue'));
+      }
       el('heroProfit').textContent = brl(r.profit);
       el('heroMargin').textContent = pct(r.margin * 100);
+      paintMargin(el('heroMargin'), r.margin);
 
       el('rowPrice').textContent = brl(r.price);
       el('rowCommissionPct').textContent = '(' + pct(r.commissionRate * 100) + ')';
@@ -933,6 +940,7 @@
       setProfitColor(el('heroProfit'), r.profit, brl(r.profit));
 
       el('statMargin').textContent = pct(r.margin * 100);
+      paintMargin(el('statMargin'), r.margin);
       el('statUnits').textContent = int(r.units);
       el('statRevenue').textContent = brl(r.netReceived);
       setProfitColor(el('statTotal'), r.totalProfit, brl(r.totalProfit));
@@ -945,6 +953,23 @@
           taxRate: inTax.value, units: inUnits.value, margin: inSlider.value, sale: inSale.value
         }));
       } catch (e) {}
+    }
+
+    var MARGIN_COLORS = ['text-orange-500', 'text-emerald-400', 'text-emerald-500', 'text-emerald-600'];
+    function marginColorClass(m) {
+      if (m < 0) return 'text-orange-500';
+      if (m < 0.15) return 'text-emerald-400';
+      if (m <= 0.20) return 'text-emerald-500';
+      return 'text-emerald-600';
+    }
+    function paintMargin(node, m) {
+      MARGIN_COLORS.forEach(function (c) { node.classList.remove(c); });
+      node.classList.remove('text-accent', 'text-ink');
+      node.classList.add(marginColorClass(m));
+    }
+    function clearMarginPaint(node) {
+      MARGIN_COLORS.forEach(function (c) { node.classList.remove(c); });
+      node.classList.add('text-ink');
     }
 
     function setProfitColor(node, v, text) {
@@ -1101,7 +1126,7 @@
         taxRate: inTax.value, units: inUnits.value, margin: inSlider.value, sale: inSale.value,
         price: r.price, profit: r.profit, margin: r.margin, totalProfit: r.totalProfit
       });
-      setMlHistory(list.slice(0, 30));
+      setMlHistory(list.slice(0, 100));
       mlShowFeedback('Simulação salva!');
     });
 
@@ -1620,7 +1645,7 @@
         iiRate: inputs.iiRate.value, icmsRate: inputs.icmsRate.value,
         totalCost: r.totalCost, taxBurden: r.taxBurden, unitCost: r.unitCost
       });
-      setHistory(list.slice(0, 30));
+      setHistory(list.slice(0, 100));
       showFeedback('Simulação salva!');
     });
 
