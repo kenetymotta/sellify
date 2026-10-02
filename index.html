@@ -393,18 +393,22 @@
                 </div>
               </div>
 
-              <div class="px-6 py-5 grid grid-cols-3 gap-3 border-t border-line">
+              <div class="px-6 py-5 grid grid-cols-2 gap-4 border-t border-line">
                 <div>
-                  <p class="text-xs text-faint">Margem real</p>
-                  <p id="statMargin" class="num font-display font-bold text-lg text-accent mt-1">0,0%</p>
-                </div>
-                <div>
-                  <p class="text-xs text-faint">Unidades</p>
-                  <p id="statUnits" class="num font-display font-bold text-lg text-ink mt-1">0</p>
+                  <p class="text-xs text-faint">Venda bruta recebida</p>
+                  <p id="statRevenue" class="num font-display font-bold text-lg text-ink mt-1">R$ 0,00</p>
                 </div>
                 <div class="text-right">
                   <p class="text-xs text-faint">Lucro total projetado</p>
                   <p id="statTotal" class="num font-display font-bold text-lg text-emerald-500 mt-1">R$ 0,00</p>
+                </div>
+                <div>
+                  <p class="text-xs text-faint">Margem real</p>
+                  <p id="statMargin" class="num font-display font-bold text-lg text-accent mt-1">0,0%</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-xs text-faint">Unidades</p>
+                  <p id="statUnits" class="num font-display font-bold text-lg text-ink mt-1">0</p>
                 </div>
               </div>
 
@@ -850,7 +854,7 @@
         price: price, commission: commission, commissionRate: commissionRate,
         fixed: fixed, shipping: shipping, tax: tax, taxRate: taxRate, cost: cost,
         profit: profit, margin: margin, units: units,
-        totalProfit: profit * units
+        totalProfit: profit * units, revenue: price * units
       };
     }
 
@@ -890,6 +894,7 @@
 
       el('statMargin').textContent = pct(r.margin * 100);
       el('statUnits').textContent = int(r.units);
+      el('statRevenue').textContent = brl(r.revenue);
       setProfitColor(el('statTotal'), r.totalProfit, brl(r.totalProfit));
 
       try {
