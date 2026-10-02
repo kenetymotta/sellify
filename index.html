@@ -400,6 +400,35 @@
 
               <p id="costWarning" class="hidden px-6 py-3 text-xs font-medium text-rose-500 bg-rose-500/10" role="alert"></p>
             </div>
+
+            <!-- Ações -->
+            <div class="grid grid-cols-2 gap-3">
+              <button id="mlCopyBtn" type="button"
+                class="rounded-xl bg-gold hover:bg-goldsoft text-slate-900 font-semibold py-3 text-sm transition active:scale-[.99]">
+                Copiar resumo
+              </button>
+              <button id="mlPdfBtn" type="button"
+                class="rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 text-sm transition active:scale-[.99]">
+                Exportar PDF
+              </button>
+              <button id="mlSaveBtn" type="button"
+                class="rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold py-3 text-sm transition active:scale-[.99]">
+                Salvar simulação
+              </button>
+              <button id="mlClearBtn" type="button"
+                class="rounded-xl border border-line bg-inset hover:bg-card text-muted font-semibold py-3 text-sm transition active:scale-[.99]">
+                Limpar
+              </button>
+            </div>
+            <p id="mlFeedback" class="text-center text-xs text-emerald-500 h-4 opacity-0 transition-opacity"></p>
+
+            <div id="mlHistoryCard" class="bg-card rounded-2xl border border-line p-5 lg:p-6 hidden transition-colors">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="font-display font-semibold text-sm text-ink">Histórico de simulações</h3>
+                <button id="mlClearHistoryBtn" type="button" class="text-xs text-faint hover:text-rose-500 transition">Apagar tudo</button>
+              </div>
+              <ul id="mlHistoryList" class="space-y-2 max-h-72 overflow-y-auto"></ul>
+            </div>
           </div>
         </div>
       </section>
@@ -876,9 +905,238 @@
       el('marginValueLabel').textContent = inSlider.value + '%';
     }
 
+    // ---------- Ações (copiar / PDF / salvar / limpar) ----------
+    var mlCopy = el('mlCopyBtn');
+    var mlPdf = el('mlPdfBtn');
+    var mlSave = el('mlSaveBtn');
+    var mlClear = el('mlClearBtn');
+    var mlFeedback = el('mlFeedback');
+    var ML_HISTORY_KEY = 'sellify_ml_history_v1';
+
+    var mlFeedbackTimer;
+    function mlShowFeedback(msg, ok) {
+      mlFeedback.textContent = msg;
+      mlFeedback.className = 'text-center text-xs h-4 transition-opacity ' + (ok === false ? 'text-rose-500' : 'text-emerald-500');
+      mlFeedback.style.opacity = '1';
+      clearTimeout(mlFeedbackTimer);
+      mlFeedbackTimer = setTimeout(function () { mlFeedback.style.opacity = '0'; }, 2200);
+    }
+
+    function listingLabel() { return state.listing === 'premium' ? 'Premium' : 'Clássico'; }
+
+    function mlFallbackCopy(text, cb) {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+      if (cb) cb();
+    }
+    function mlCopyText(text, cb) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(cb).catch(function () { mlFallbackCopy(text, cb); });
+      } else {
+        mlFallbackCopy(text, cb);
+      }
+    }
+
+    function mlResultOrWarn() {
+      var r = compute();
+      if (!r || r.invalid || r.zeroPrice) {
+        mlShowFeedback('Preencha o custo do produto para continuar.', false);
+        return null;
+      }
+      return r;
+    }
+
+    mlCopy.addEventListener('click', function () {
+      var r = mlResultOrWarn();
+      if (!r) return;
+      var line = '--------------------------------------';
+      var freteTaxa = r.fixed + r.shipping;
+      var txt = [
+        '📊 RESUMO DA SIMULAÇÃO - MERCADO LIVRE',
+        line,
+        '• Produto / Custo: ' + brl(r.cost),
+        '• Tipo de Anúncio: ' + listingLabel(),
+        '• Imposto: ' + pct(r.taxRate * 100),
+        line,
+        '💰 Preço de Venda Sugerido: ' + brl(r.price),
+        '📉 Comissão ML: ' + brl(r.commission) + ' (' + pct(r.commissionRate * 100) + ')',
+        '🚚 Frete / Taxa Fixa: ' + brl(freteTaxa),
+        '💵 Lucro Líquido por Unidade: ' + brl(r.profit) + ' (' + pct(r.margin * 100) + ' Real)',
+        '📦 Lucro Total (' + int(r.units) + ' un): ' + brl(r.totalProfit),
+        line,
+        'Gerado por Sellify (Idealizado por Kenety Motta)'
+      ].join('\n');
+      mlCopyText(txt, function () { mlShowFeedback('Resumo copiado!'); });
+    });
+
+    mlPdf.addEventListener('click', function () {
+      var r = mlResultOrWarn();
+      if (!r) return;
+      var rows = [
+        ['Preço de venda sugerido', brl(r.price)],
+        ['Tipo de anúncio', listingLabel()],
+        ['Custo do produto', brl(r.cost)],
+        ['Comissão Mercado Livre', brl(r.commission) + ' (' + pct(r.commissionRate * 100) + ')'],
+        ['Taxa fixa por unidade', r.fixed > 0 ? brl(r.fixed) : brl(0)],
+        ['Frete', r.shipping > 0 ? brl(r.shipping) : brl(0)],
+        ['Imposto', brl(r.tax) + ' (' + pct(r.taxRate * 100) + ')'],
+        ['Lucro líquido por unidade', brl(r.profit)],
+        ['Margem líquida real', pct(r.margin * 100)],
+        ['Unidades simuladas', int(r.units)],
+        ['Lucro total projetado', brl(r.totalProfit)]
+      ];
+      var body = rows.map(function (row) {
+        return '<tr><td style="color:#475569">' + row[0] + '</td><td style="text-align:right;font-weight:600">' + row[1] + '</td></tr>';
+      }).join('');
+      el('printArea').innerHTML =
+        '<h1 style="font-size:20px;font-weight:800;margin-bottom:2px">Resumo - Mercado Livre</h1>' +
+        '<p style="font-size:12px;color:#64748b;margin-bottom:16px">Simulação de custos e margem — ' +
+          new Date().toLocaleString('pt-BR') + '</p>' +
+        '<h2 style="font-size:28px;font-weight:800;margin:10px 0 18px">' + brl(r.price) + '</h2>' +
+        '<table>' + body + '</table>' +
+        '<p style="font-size:11px;color:#94a3b8;margin-top:18px">Valores informativos. Gerado por Sellify (Idealizado por Kenety Motta).</p>';
+      window.print();
+    });
+
+    function getMlHistory() {
+      try { return JSON.parse(localStorage.getItem(ML_HISTORY_KEY)) || []; }
+      catch (e) { return []; }
+    }
+    function setMlHistory(list) {
+      try { localStorage.setItem(ML_HISTORY_KEY, JSON.stringify(list)); } catch (e) {}
+      renderMlHistory();
+    }
+
+    mlSave.addEventListener('click', function () {
+      var r = mlResultOrWarn();
+      if (!r) return;
+      var list = getMlHistory();
+      list.unshift({
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        date: new Date().toLocaleString('pt-BR'),
+        listing: state.listing, mode: state.mode,
+        cost: inCost.value, shippingCost: inShip.value, includeShipping: inShipToggle.checked,
+        taxRate: inTax.value, units: inUnits.value, margin: inSlider.value, sale: inSale.value,
+        price: r.price, profit: r.profit, margin: r.margin, totalProfit: r.totalProfit
+      });
+      setMlHistory(list.slice(0, 30));
+      mlShowFeedback('Simulação salva!');
+    });
+
+    function renderMlHistory() {
+      var list = getMlHistory();
+      var card = el('mlHistoryCard');
+      var ul = el('mlHistoryList');
+      list = Array.isArray(list) ? list.filter(function (i) { return i && typeof i === 'object'; }) : [];
+      if (!list.length) { card.classList.add('hidden'); return; }
+      card.classList.remove('hidden');
+      ul.innerHTML = '';
+      list.forEach(function (item) {
+        var price = Number(item.price); if (!isFinite(price)) price = 0;
+        var profit = Number(item.profit); if (!isFinite(profit)) profit = 0;
+        var margin = Number(item.margin); if (!isFinite(margin)) margin = 0;
+        var units = Number(item.units); if (!isFinite(units)) units = 0;
+
+        var li = document.createElement('li');
+        li.className = 'flex items-center justify-between gap-3 rounded-lg border border-line bg-inset px-3 py-2.5';
+
+        var info = document.createElement('div');
+        info.className = 'min-w-0';
+        var p1 = document.createElement('p');
+        p1.className = 'num text-sm font-semibold text-ink truncate';
+        p1.textContent = brl(price) + ' ';
+        var span = document.createElement('span');
+        span.className = 'text-xs font-normal text-faint';
+        span.textContent = '· lucro ' + brl(profit);
+        p1.appendChild(span);
+        var p2 = document.createElement('p');
+        p2.className = 'text-xs text-faint';
+        p2.textContent = (item.date ? String(item.date) : '') + ' · ' + pct(margin * 100) + ' · ' + int(units) + ' un';
+        info.appendChild(p1);
+        info.appendChild(p2);
+
+        var actions = document.createElement('div');
+        actions.className = 'flex gap-1 shrink-0';
+        var loadBtn = document.createElement('button');
+        loadBtn.type = 'button';
+        loadBtn.className = 'text-xs font-medium text-accent hover:underline px-1';
+        loadBtn.textContent = 'Carregar';
+        loadBtn.dataset.load = String(item.id || '');
+        var delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'text-xs font-medium text-rose-500 hover:underline px-1';
+        delBtn.textContent = 'Excluir';
+        delBtn.dataset.del = String(item.id || '');
+        actions.appendChild(loadBtn);
+        actions.appendChild(delBtn);
+
+        li.appendChild(info);
+        li.appendChild(actions);
+        ul.appendChild(li);
+      });
+    }
+
+    el('mlHistoryList').addEventListener('click', function (e) {
+      var loadId = e.target.getAttribute && e.target.getAttribute('data-load');
+      var delId = e.target.getAttribute && e.target.getAttribute('data-del');
+      if (loadId) {
+        var item = getMlHistory().filter(function (i) { return i.id === loadId; })[0];
+        if (!item) return;
+        state.listing = item.listing === 'premium' ? 'premium' : 'classic';
+        state.mode = item.mode === 'price' ? 'price' : 'margin';
+        inCost.value = item.cost != null ? String(item.cost) : '';
+        inShip.value = item.shippingCost != null ? String(item.shippingCost) : '';
+        inShipToggle.checked = !!item.includeShipping;
+        el('shippingField').classList.toggle('hidden', !inShipToggle.checked);
+        inTax.value = item.taxRate != null ? String(item.taxRate) : '6';
+        inUnits.value = item.units != null ? String(item.units) : '100';
+        inSlider.value = item.margin != null ? String(item.margin) : '20';
+        inSale.value = item.sale != null ? String(item.sale) : '';
+        var isMargin = state.mode === 'margin';
+        el('modeMarginPanel').classList.toggle('hidden', !isMargin);
+        el('modePricePanel').classList.toggle('hidden', isMargin);
+        el('marginValueLabel').textContent = inSlider.value + '%';
+        refreshControls();
+        calculate();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else if (delId) {
+        setMlHistory(getMlHistory().filter(function (i) { return i.id !== delId; }));
+      }
+    });
+
+    el('mlClearHistoryBtn').addEventListener('click', function () {
+      if (confirm('Apagar todo o histórico de simulações?')) setMlHistory([]);
+    });
+
+    mlClear.addEventListener('click', function () {
+      inCost.value = '';
+      inShip.value = '';
+      inSale.value = '';
+      inTax.value = '6';
+      inUnits.value = '100';
+      inSlider.value = '20';
+      inShipToggle.checked = false;
+      el('shippingField').classList.add('hidden');
+      state.listing = 'classic';
+      state.mode = 'margin';
+      el('modeMarginPanel').classList.remove('hidden');
+      el('modePricePanel').classList.add('hidden');
+      el('marginValueLabel').textContent = '20%';
+      refreshControls();
+      calculate();
+      mlShowFeedback('Campos limpos.');
+    });
+
     restore();
     refreshControls();
     calculate();
+    renderMlHistory();
   })();
   </script>
 
