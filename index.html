@@ -276,10 +276,19 @@
               <div>
                 <label class="block text-sm font-medium text-muted mb-1">Simular Unidades Vendidas</label>
                 <div class="relative">
-                  <input id="unitsSimulated" type="text" inputmode="numeric" autocomplete="off" value="100"
+                  <input id="unitsSimulated" type="text" inputmode="numeric" autocomplete="off" value="1.000"
                     class="num w-full rounded-lg border border-line bg-inset pl-3 pr-16 py-2.5 text-sm font-medium text-ink focus:border-gold/60 focus:ring-2 focus:ring-gold/20 outline-none transition" />
                   <span class="absolute right-3 top-1/2 -translate-y-1/2 text-faint text-sm">un</span>
                 </div>
+                <div class="flex flex-wrap gap-1.5 mt-2">
+                  <button type="button" class="unit-preset rounded-lg border border-line bg-inset px-2.5 py-1 text-xs text-muted hover:text-accent hover:border-gold/50 transition" data-units="100">100</button>
+                  <button type="button" class="unit-preset rounded-lg border border-line bg-inset px-2.5 py-1 text-xs text-muted hover:text-accent hover:border-gold/50 transition" data-units="1000">1.000</button>
+                  <button type="button" class="unit-preset rounded-lg border border-line bg-inset px-2.5 py-1 text-xs text-muted hover:text-accent hover:border-gold/50 transition" data-units="10000">10.000</button>
+                  <button type="button" class="unit-preset rounded-lg border border-line bg-inset px-2.5 py-1 text-xs text-muted hover:text-accent hover:border-gold/50 transition" data-units="100000">100.000</button>
+                  <button type="button" class="unit-preset rounded-lg border border-line bg-inset px-2.5 py-1 text-xs text-muted hover:text-accent hover:border-gold/50 transition" data-units="1000000">1 milhão</button>
+                  <button type="button" class="unit-preset rounded-lg border border-gold/50 bg-gold/10 px-2.5 py-1 text-xs text-accent transition" data-units="999999999">∞ ilimitado</button>
+                </div>
+                <p class="text-xs text-faint mt-1">Sem limite máximo — informe qualquer quantidade.</p>
               </div>
             </div>
 
@@ -738,6 +747,11 @@
     function brl(v) { if (!isFinite(v)) v = 0; return 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
     function pct(v) { if (!isFinite(v)) v = 0; return v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'; }
     function int(v) { if (!isFinite(v)) v = 0; return Math.round(v).toLocaleString('pt-BR'); }
+    function parseUnits(str) {
+      var d = String(str == null ? '' : str).replace(/[^\d]/g, '');
+      var v = parseInt(d, 10);
+      return isNaN(v) ? 0 : v;
+    }
     function fixedFor(price, cfg) { return price > 0 && price < cfg.threshold ? cfg.fixed : 0; }
 
     function refreshControls() {
@@ -792,13 +806,20 @@
     });
     el('marginValueLabel').textContent = inSlider.value + '%';
 
+    Array.prototype.forEach.call(document.querySelectorAll('.unit-preset'), function (b) {
+      b.addEventListener('click', function () {
+        inUnits.value = Number(b.getAttribute('data-units')).toLocaleString('pt-BR');
+        calculate();
+      });
+    });
+
     function compute() {
       var cfg = ML[state.listing];
       var cost = parseNum(inCost.value);
       var commissionRate = cfg.commission;
       var taxRate = parseNum(inTax.value) / 100;
       var shipping = inShipToggle.checked ? parseNum(inShip.value) : 0;
-      var units = parseNum(inUnits.value);
+      var units = parseUnits(inUnits.value);
 
       if (cost <= 0) return null;
 
