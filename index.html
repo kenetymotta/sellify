@@ -91,6 +91,7 @@
       #printArea { display: block !important; padding: 24px; color: #0f172a; }
       #printArea table { width: 100%; border-collapse: collapse; }
       #printArea td { padding: 8px 4px; border-bottom: 1px solid #e2e8f0; }
+      #printArea th { text-align: left; padding: 8px 4px; border-bottom: 2px solid #cbd5e1; font-size: 12px; }
     }
   </style>
 </head>
@@ -458,13 +459,21 @@
                 class="rounded-xl border border-line bg-inset hover:bg-card text-muted font-semibold py-3 text-sm transition active:scale-[.99]">
                 Limpar
               </button>
+              <button id="mlExcelBtn" type="button"
+                class="col-span-2 rounded-xl border border-line bg-inset hover:bg-card text-ink font-semibold py-3 text-sm transition active:scale-[.99]">
+                Exportar Excel / Google Sheets
+              </button>
             </div>
             <p id="mlFeedback" class="text-center text-xs text-emerald-500 h-4 opacity-0 transition-opacity"></p>
 
             <div id="mlHistoryCard" class="bg-card rounded-2xl border border-line p-5 lg:p-6 hidden transition-colors">
-              <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center justify-between gap-2 mb-4">
                 <h3 class="font-display font-semibold text-sm text-ink">Histórico de simulações</h3>
-                <button id="mlClearHistoryBtn" type="button" class="text-xs text-faint hover:text-rose-500 transition">Apagar tudo</button>
+                <div class="flex items-center gap-2">
+                  <button id="mlHistoryExcelBtn" type="button" class="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline">Excel</button>
+                  <button id="mlHistoryPdfBtn" type="button" class="text-xs font-medium text-accent hover:underline">PDF</button>
+                  <button id="mlClearHistoryBtn" type="button" class="text-xs text-faint hover:text-rose-500 transition">Apagar tudo</button>
+                </div>
               </div>
               <ul id="mlHistoryList" class="space-y-2 max-h-72 overflow-y-auto"></ul>
             </div>
@@ -682,13 +691,21 @@
                 class="rounded-xl border border-line bg-inset hover:bg-card text-muted font-semibold py-3 text-sm transition active:scale-[.99]">
                 Limpar
               </button>
+              <button id="excelBtn" type="button"
+                class="col-span-2 rounded-xl border border-line bg-inset hover:bg-card text-ink font-semibold py-3 text-sm transition active:scale-[.99]">
+                Exportar Excel / Google Sheets
+              </button>
             </div>
             <p id="copyFeedback" class="text-center text-xs text-emerald-500 h-4 opacity-0 transition-opacity">Resumo copiado!</p>
 
             <div id="historyCard" class="bg-card rounded-2xl border border-line p-5 lg:p-6 hidden transition-colors">
-              <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center justify-between gap-2 mb-4">
                 <h3 class="font-display font-semibold text-sm text-ink">Histórico de simulações</h3>
-                <button id="clearHistoryBtn" type="button" class="text-xs text-faint hover:text-rose-500 transition">Apagar tudo</button>
+                <div class="flex items-center gap-2">
+                  <button id="historyExcelBtn" type="button" class="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline">Excel</button>
+                  <button id="historyPdfBtn" type="button" class="text-xs font-medium text-accent hover:underline">PDF</button>
+                  <button id="clearHistoryBtn" type="button" class="text-xs text-faint hover:text-rose-500 transition">Apagar tudo</button>
+                </div>
               </div>
               <ul id="historyList" class="space-y-2 max-h-72 overflow-y-auto"></ul>
             </div>
@@ -746,6 +763,27 @@
     document.querySelectorAll('[data-go]').forEach(function (b) {
       b.addEventListener('click', function () { go(b.getAttribute('data-go')); });
     });
+
+    // ---------- Export helpers (CSV / Google Sheets) ----------
+    window.sellifyDownload = function (filename, content, mime) {
+      var blob = new Blob([content], { type: mime || 'text/plain;charset=utf-8;' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+    };
+    window.sellifyCsv = function (rows) {
+      function cell(v) {
+        var s = v == null ? '' : String(v);
+        if (/[",;\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+        return s;
+      }
+      return '\ufeff' + rows.map(function (r) { return r.map(cell).join(','); }).join('\r\n');
+    };
   })();
   </script>
 
@@ -1005,6 +1043,7 @@
     // ---------- Ações (copiar / PDF / salvar / limpar) ----------
     var mlCopy = el('mlCopyBtn');
     var mlPdf = el('mlPdfBtn');
+    var mlExcel = el('mlExcelBtn');
     var mlSave = el('mlSaveBtn');
     var mlClear = el('mlClearBtn');
     var mlFeedback = el('mlFeedback');
@@ -1104,6 +1143,29 @@
       window.print();
     });
 
+    mlExcel.addEventListener('click', function () {
+      var r = mlResultOrWarn();
+      if (!r) return;
+      var rows = [['Campo', 'Valor']];
+      if (productName()) rows.push(['Produto', productName()]);
+      rows = rows.concat([
+        ['Tipo de anúncio', listingLabel()],
+        ['Custo do produto', brl(r.cost)],
+        ['Preço de venda sugerido', brl(r.price)],
+        ['Comissão Mercado Livre', brl(r.commission) + ' (' + pct(r.commissionRate * 100) + ')'],
+        ['Taxa fixa por unidade', r.fixed > 0 ? brl(r.fixed) : brl(0)],
+        ['Frete', r.shipping > 0 ? brl(r.shipping) : brl(0)],
+        ['Imposto', brl(r.tax) + ' (' + pct(r.taxRate * 100) + ')'],
+        ['Venda líquida a receber', brl(r.netReceived)],
+        ['Lucro líquido por unidade', brl(r.profit)],
+        ['Margem real', pct(r.margin * 100)],
+        ['Unidades simuladas', int(r.units)],
+        ['Lucro total projetado', brl(r.totalProfit)]
+      ]);
+      sellifyDownload('simulacao-mercado-livre.csv', sellifyCsv(rows));
+      mlShowFeedback('Planilha exportada!');
+    });
+
     function getMlHistory() {
       try { return JSON.parse(localStorage.getItem(ML_HISTORY_KEY)) || []; }
       catch (e) { return []; }
@@ -1124,7 +1186,8 @@
         cost: inCost.value, shippingCost: inShip.value, includeShipping: inShipToggle.checked,
         includeName: inNameToggle.checked, productName: inName.value,
         taxRate: inTax.value, units: inUnits.value, margin: inSlider.value, sale: inSale.value,
-        price: r.price, profit: r.profit, margin: r.margin, totalProfit: r.totalProfit
+        price: r.price, profit: r.profit, margin: r.margin, totalProfit: r.totalProfit,
+        commission: r.commission, netReceived: r.netReceived, fixed: r.fixed, shipping: r.shipping, tax: r.tax
       });
       setMlHistory(list.slice(0, 100));
       mlShowFeedback('Simulação salva!');
@@ -1217,6 +1280,53 @@
 
     el('mlClearHistoryBtn').addEventListener('click', function () {
       if (confirm('Apagar todo o histórico de simulações?')) setMlHistory([]);
+    });
+
+    el('mlHistoryExcelBtn').addEventListener('click', function () {
+      var list = getMlHistory();
+      if (!list.length) { mlShowFeedback('Nenhuma simulação salva.', false); return; }
+      var rows = [['Data', 'Produto', 'Tipo', 'Custo', 'Preço de venda', 'Comissão', 'Venda líquida', 'Lucro/un', 'Margem', 'Unidades', 'Lucro total']];
+      list.forEach(function (item) {
+        rows.push([
+          item.date || '',
+          item.productName || '',
+          item.listing === 'premium' ? 'Premium' : 'Clássico',
+          brl(Number(item.cost) || 0),
+          brl(Number(item.price) || 0),
+          brl(Number(item.commission) || 0),
+          brl(Number(item.netReceived) || 0),
+          brl(Number(item.profit) || 0),
+          pct((Number(item.margin) || 0) * 100),
+          int(Number(item.units) || 0),
+          brl(Number(item.totalProfit) || 0)
+        ]);
+      });
+      sellifyDownload('historico-mercado-livre.csv', sellifyCsv(rows));
+      mlShowFeedback('Histórico exportado (Excel)!');
+    });
+
+    el('mlHistoryPdfBtn').addEventListener('click', function () {
+      var list = getMlHistory();
+      if (!list.length) { mlShowFeedback('Nenhuma simulação salva.', false); return; }
+      var head = ['Data', 'Produto', 'Tipo', 'Preço', 'Lucro/un', 'Margem', 'Un.', 'Lucro total'];
+      var body = list.map(function (item) {
+        return '<tr>' +
+          '<td>' + (item.date || '') + '</td>' +
+          '<td>' + (item.productName ? String(item.productName) : '-') + '</td>' +
+          '<td>' + (item.listing === 'premium' ? 'Premium' : 'Clássico') + '</td>' +
+          '<td style="text-align:right">' + brl(Number(item.price) || 0) + '</td>' +
+          '<td style="text-align:right">' + brl(Number(item.profit) || 0) + '</td>' +
+          '<td style="text-align:right">' + pct((Number(item.margin) || 0) * 100) + '</td>' +
+          '<td style="text-align:right">' + int(Number(item.units) || 0) + '</td>' +
+          '<td style="text-align:right">' + brl(Number(item.totalProfit) || 0) + '</td>' +
+        '</tr>';
+      }).join('');
+      el('printArea').innerHTML =
+        '<h1 style="font-size:20px;font-weight:800;margin-bottom:2px">Histórico de Simulações — Mercado Livre</h1>' +
+        '<p style="font-size:12px;color:#64748b;margin-bottom:16px">' + new Date().toLocaleString('pt-BR') + '</p>' +
+        '<table><thead><tr>' + head.map(function (h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>' + body + '</tbody></table>' +
+        '<p style="font-size:11px;color:#94a3b8;margin-top:18px">Gerado por Sellify (Idealizado por Kenety Motta).</p>';
+      window.print();
     });
 
     mlClear.addEventListener('click', function () {
@@ -1668,6 +1778,68 @@
 
     el('clearHistoryBtn').addEventListener('click', function () {
       if (confirm('Apagar todo o histórico de simulações?')) setHistory([]);
+    });
+
+    el('excelBtn').addEventListener('click', function () {
+      var r = calculate();
+      if (r.totalCost <= 0) { showFeedback('Preencha os dados para exportar.', false); return; }
+      var rows = [['Campo', 'Valor']];
+      rows.push(['Moeda', currency === 'USD' ? 'US$' : 'R$']);
+      rows.push(['Valor unitário', currency === 'USD' ? formatUSD(r.unit) : formatBRL(r.unit)]);
+      rows.push(['Quantidade', r.qty.toLocaleString('pt-BR') + ' peças']);
+      rows.push(['Subtotal', currency === 'USD' ? formatUSD(r.subtotal) : formatBRL(r.subtotal)]);
+      rows.push(['Frete internacional', currency === 'USD' ? formatUSD(r.freight) : formatBRL(r.freight)]);
+      rows.push(['Seguro internacional', currency === 'USD' ? formatUSD(r.insurance) : formatBRL(r.insurance)]);
+      if (currency === 'USD') rows.push(['Taxa de câmbio', 'R$ ' + r.rate.toFixed(4).replace('.', ',')]);
+      rows.push(['Valor aduaneiro (CIF)', formatBRL(r.cif)]);
+      rows.push(['Imposto de Importação', formatBRL(r.ii) + ' (' + r.iiRate + '%)']);
+      rows.push(['ICMS', formatBRL(r.icms) + ' (' + r.icmsRate + '%)']);
+      rows.push(['Total de tributos', formatBRL(r.totalTaxes)]);
+      rows.push(['Custo total da importação', formatBRL(r.totalCost)]);
+      rows.push(['Custo unitário', formatBRL(r.unitCost)]);
+      rows.push(['Carga tributária', formatPct(r.taxBurden)]);
+      sellifyDownload('simulacao-importacao.csv', sellifyCsv(rows));
+      showFeedback('Planilha exportada!');
+    });
+
+    el('historyExcelBtn').addEventListener('click', function () {
+      var list = getHistory();
+      if (!list.length) { showFeedback('Nenhuma simulação salva.', false); return; }
+      var rows = [['Data', 'Moeda', 'Quantidade', 'Custo unitário', 'Custo total', 'Carga tributária']];
+      list.forEach(function (item) {
+        rows.push([
+          item.date || '',
+          item.currency || '',
+          (Number(item.qty) || 0).toLocaleString('pt-BR'),
+          formatBRL(Number(item.unitCost) || 0),
+          formatBRL(Number(item.totalCost) || 0),
+          formatPct(Number(item.taxBurden) || 0)
+        ]);
+      });
+      sellifyDownload('historico-importacao.csv', sellifyCsv(rows));
+      showFeedback('Histórico exportado (Excel)!');
+    });
+
+    el('historyPdfBtn').addEventListener('click', function () {
+      var list = getHistory();
+      if (!list.length) { showFeedback('Nenhuma simulação salva.', false); return; }
+      var head = ['Data', 'Moeda', 'Qtd', 'Custo unitário', 'Custo total', 'Carga'];
+      var body = list.map(function (item) {
+        return '<tr>' +
+          '<td>' + (item.date || '') + '</td>' +
+          '<td>' + (item.currency || '') + '</td>' +
+          '<td style="text-align:right">' + (Number(item.qty) || 0).toLocaleString('pt-BR') + '</td>' +
+          '<td style="text-align:right">' + formatBRL(Number(item.unitCost) || 0) + '</td>' +
+          '<td style="text-align:right">' + formatBRL(Number(item.totalCost) || 0) + '</td>' +
+          '<td style="text-align:right">' + formatPct(Number(item.taxBurden) || 0) + '</td>' +
+        '</tr>';
+      }).join('');
+      el('printArea').innerHTML =
+        '<h1 style="font-size:20px;font-weight:800;margin-bottom:2px">Histórico de Simulações — Importação</h1>' +
+        '<p style="font-size:12px;color:#64748b;margin-bottom:16px">' + new Date().toLocaleString('pt-BR') + '</p>' +
+        '<table><thead><tr>' + head.map(function (h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>' + body + '</tbody></table>' +
+        '<p style="font-size:11px;color:#94a3b8;margin-top:18px">Gerado por Sellify (Idealizado por Kenety Motta).</p>';
+      window.print();
     });
 
     el('pdfBtn').addEventListener('click', function () {
