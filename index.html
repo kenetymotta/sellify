@@ -263,6 +263,28 @@
                 </div>
               </div>
 
+              <div class="flex items-center justify-between rounded-xl bg-inset border border-line px-4 py-3">
+                <div>
+                  <p class="text-sm font-medium text-ink">Nome do Produto</p>
+                  <p class="text-xs text-faint">Opcional — para identificar a simulação</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input id="includeName" type="checkbox" class="sr-only peer" />
+                  <div class="w-11 h-6 bg-line rounded-full peer-checked:bg-gold transition-colors"></div>
+                  <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></div>
+                </label>
+              </div>
+
+              <div id="nameField" class="hidden">
+                <label class="block text-sm font-medium text-muted mb-1">Nome do Produto</label>
+                <input id="productName" type="text" maxlength="90" autocomplete="off" placeholder="Ex.: Fone Bluetooth XZ"
+                  class="w-full rounded-lg border border-line bg-inset px-3 py-2.5 text-sm font-medium text-ink placeholder-faint focus:border-gold/60 focus:ring-2 focus:ring-gold/20 outline-none transition" />
+                <div class="flex items-center justify-between mt-1">
+                  <p class="text-xs text-faint">Máximo de 90 caracteres</p>
+                  <p id="nameCounter" class="num text-xs text-faint">0/90</p>
+                </div>
+              </div>
+
               <div>
                 <label class="block text-sm font-medium text-muted mb-1">Alíquota de Imposto (%)</label>
                 <div class="relative">
@@ -795,10 +817,24 @@
     var inCost = el('productCost');
     var inShipToggle = el('includeShipping');
     var inShip = el('shippingCost');
+    var inNameToggle = el('includeName');
+    var inName = el('productName');
     var inTax = el('taxRate');
     var inUnits = el('unitsSimulated');
     var inSlider = el('marginSlider');
     var inSale = el('saleValue');
+
+    function productName() { return inNameToggle.checked ? inName.value.trim() : ''; }
+    function syncNameCounter() { el('nameCounter').textContent = inName.value.length + '/90'; }
+
+    inNameToggle.addEventListener('change', function () {
+      el('nameField').classList.toggle('hidden', !inNameToggle.checked);
+      calculate();
+    });
+    inName.addEventListener('input', function () {
+      syncNameCounter();
+      calculate();
+    });
 
     inShipToggle.addEventListener('change', function () {
       el('shippingField').classList.toggle('hidden', !inShipToggle.checked);
@@ -905,6 +941,7 @@
         localStorage.setItem('sellify_ml_v1', JSON.stringify({
           listing: state.listing, mode: state.mode,
           cost: inCost.value, shippingCost: inShip.value, includeShipping: inShipToggle.checked,
+          includeName: inNameToggle.checked, productName: inName.value,
           taxRate: inTax.value, units: inUnits.value, margin: inSlider.value, sale: inSale.value
         }));
       } catch (e) {}
@@ -926,6 +963,10 @@
       if (typeof s.shippingCost === 'string') inShip.value = s.shippingCost;
       inShipToggle.checked = !!s.includeShipping;
       el('shippingField').classList.toggle('hidden', !inShipToggle.checked);
+      inNameToggle.checked = !!s.includeName;
+      if (typeof s.productName === 'string') inName.value = s.productName;
+      el('nameField').classList.toggle('hidden', !inNameToggle.checked);
+      syncNameCounter();
       if (typeof s.taxRate === 'string') inTax.value = s.taxRate;
       if (typeof s.units === 'string') inUnits.value = s.units;
       if (typeof s.margin === 'string') inSlider.value = s.margin;
@@ -991,7 +1032,7 @@
       var txt = [
         '📊 RESUMO DA SIMULAÇÃO - MERCADO LIVRE',
         line,
-        '• Produto / Custo: ' + brl(r.cost),
+        '• Produto / Custo: ' + (productName() ? productName() + ' — ' : '') + brl(r.cost),
         '• Tipo de Anúncio: ' + listingLabel(),
         '• Imposto: ' + pct(r.taxRate * 100),
         line,
@@ -1009,7 +1050,9 @@
     mlPdf.addEventListener('click', function () {
       var r = mlResultOrWarn();
       if (!r) return;
-      var rows = [
+      var rows = [];
+      if (productName()) rows.push(['Produto', productName()]);
+      rows = rows.concat([
         ['Preço de venda sugerido', brl(r.price)],
         ['Tipo de anúncio', listingLabel()],
         ['Custo do produto', brl(r.cost)],
@@ -1017,11 +1060,12 @@
         ['Taxa fixa por unidade', r.fixed > 0 ? brl(r.fixed) : brl(0)],
         ['Frete', r.shipping > 0 ? brl(r.shipping) : brl(0)],
         ['Imposto', brl(r.tax) + ' (' + pct(r.taxRate * 100) + ')'],
+        ['Venda líquida a receber', brl(r.netReceived)],
         ['Lucro líquido por unidade', brl(r.profit)],
         ['Margem líquida real', pct(r.margin * 100)],
         ['Unidades simuladas', int(r.units)],
         ['Lucro total projetado', brl(r.totalProfit)]
-      ];
+      ]);
       var body = rows.map(function (row) {
         return '<tr><td style="color:#475569">' + row[0] + '</td><td style="text-align:right;font-weight:600">' + row[1] + '</td></tr>';
       }).join('');
@@ -1053,6 +1097,7 @@
         date: new Date().toLocaleString('pt-BR'),
         listing: state.listing, mode: state.mode,
         cost: inCost.value, shippingCost: inShip.value, includeShipping: inShipToggle.checked,
+        includeName: inNameToggle.checked, productName: inName.value,
         taxRate: inTax.value, units: inUnits.value, margin: inSlider.value, sale: inSale.value,
         price: r.price, profit: r.profit, margin: r.margin, totalProfit: r.totalProfit
       });
@@ -1081,7 +1126,7 @@
         info.className = 'min-w-0';
         var p1 = document.createElement('p');
         p1.className = 'num text-sm font-semibold text-ink truncate';
-        p1.textContent = brl(price) + ' ';
+        p1.textContent = (item.productName ? String(item.productName) + ' · ' : '') + brl(price) + ' ';
         var span = document.createElement('span');
         span.className = 'text-xs font-normal text-faint';
         span.textContent = '· lucro ' + brl(profit);
@@ -1125,6 +1170,10 @@
         inShip.value = item.shippingCost != null ? String(item.shippingCost) : '';
         inShipToggle.checked = !!item.includeShipping;
         el('shippingField').classList.toggle('hidden', !inShipToggle.checked);
+        inNameToggle.checked = !!item.includeName;
+        inName.value = item.productName != null ? String(item.productName) : '';
+        el('nameField').classList.toggle('hidden', !inNameToggle.checked);
+        syncNameCounter();
         inTax.value = item.taxRate != null ? String(item.taxRate) : '6';
         inUnits.value = item.units != null ? String(item.units) : '100';
         inSlider.value = item.margin != null ? String(item.margin) : '20';
@@ -1154,6 +1203,10 @@
       inSlider.value = '20';
       inShipToggle.checked = false;
       el('shippingField').classList.add('hidden');
+      inNameToggle.checked = false;
+      inName.value = '';
+      el('nameField').classList.add('hidden');
+      syncNameCounter();
       state.listing = 'classic';
       state.mode = 'margin';
       el('modeMarginPanel').classList.remove('hidden');
