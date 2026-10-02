@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sellify — Calculadoras de Custos, Margem e Importação</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f172a'/%3E%3Cpath d='M9 8.5A1.5 1.5 0 0 1 10.5 7h7.1a2 2 0 0 1 1.42.59l4.39 4.39A2 2 0 0 1 24 13.4v9.1A1.5 1.5 0 0 1 22.5 24h-12A1.5 1.5 0 0 1 9 22.5v-14Z' fill='none' stroke='%23eab308' stroke-width='2'/%3E%3Ccircle cx='13' cy='12' r='1.6' fill='%23eab308'/%3E%3C/svg%3E" />
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('sellify_theme');
+        if (t === 'light') document.documentElement.classList.remove('dark');
+        else document.documentElement.classList.add('dark');
+      } catch (e) { document.documentElement.classList.add('dark'); }
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['IBM Plex Sans', 'system-ui', 'sans-serif'],
+            display: ['Space Grotesk', 'IBM Plex Sans', 'sans-serif']
+          },
+          colors: {
+            surface: 'rgb(var(--c-surface) / <alpha-value>)',
+            card: 'rgb(var(--c-card) / <alpha-value>)',
+            inset: 'rgb(var(--c-inset) / <alpha-value>)',
+            line: 'rgb(var(--c-line) / <alpha-value>)',
+            ink: 'rgb(var(--c-ink) / <alpha-value>)',
+            muted: 'rgb(var(--c-muted) / <alpha-value>)',
+            faint: 'rgb(var(--c-faint) / <alpha-value>)',
+            gold: 'rgb(var(--c-gold) / <alpha-value>)',
+            goldsoft: 'rgb(var(--c-goldsoft) / <alpha-value>)',
+            accent: 'rgb(var(--c-accent) / <alpha-value>)'
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --c-surface: 248 250 252;
+      --c-card: 255 255 255;
+      --c-inset: 241 245 249;
+      --c-line: 226 232 240;
+      --c-ink: 15 23 42;
+      --c-muted: 71 85 105;
+      --c-faint: 148 163 184;
+      --c-gold: 234 179 8;
+      --c-goldsoft: 245 158 11;
+      --c-accent: 180 83 9;
+    }
+    .dark {
+      --c-surface: 15 23 42;
+      --c-card: 30 41 59;
+      --c-inset: 15 23 42;
+      --c-line: 51 65 85;
+      --c-ink: 241 245 249;
+      --c-muted: 148 163 184;
+      --c-faint: 100 116 139;
+      --c-gold: 234 179 8;
+      --c-goldsoft: 245 158 11;
+      --c-accent: 250 204 21;
+    }
+    body { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+    .font-display { font-family: 'Space Grotesk', 'IBM Plex Sans', sans-serif; }
+    .num { font-variant-numeric: tabular-nums; }
+    input[type=number]::-webkit-outer-spin-button,
+    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+    .bar-segment { transition: width .35s cubic-bezier(.4,0,.2,1); }
+    .view { display: none; }
+    .view.active { display: block; }
+    .nav-item.active { background: rgb(var(--c-gold) / .12); color: rgb(var(--c-accent)); }
+    .nav-item.active .nav-bar { opacity: 1; }
+    .receipt { position: relative; }
+    .perforated { border-bottom: 2px dashed rgb(var(--c-line)); }
+    input[type=range].sell-range { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 9999px; background: rgb(var(--c-line)); outline: none; }
+    input[type=range].sell-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 9999px; background: rgb(var(--c-gold)); border: 3px solid rgb(var(--c-card)); cursor: pointer; box-shadow: 0 0 0 1px rgb(var(--c-gold)); }
+    input[type=range].sell-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 9999px; background: rgb(var(--c-gold)); border: 3px solid rgb(var(--c-card)); cursor: pointer; }
+    #printArea { display: none; }
+    @media print {
+      body { background: #fff !important; }
+      header, aside, main { display: none !important; }
+      #printArea { display: block !important; padding: 24px; color: #0f172a; }
+      #printArea table { width: 100%; border-collapse: collapse; }
+      #printArea td { padding: 8px 4px; border-bottom: 1px solid #e2e8f0; }
+    }
+  </style>
+</head>
+<body class="bg-surface text-ink antialiased min-h-screen transition-colors">
+
+  <!-- ================= TOP HEADER ================= -->
+  <header class="fixed top-0 left-0 right-0 z-40 h-16 bg-card border-b border-line transition-colors">
+    <div class="h-full flex items-center gap-3 px-4 lg:px-6">
+      <button id="sidebarToggle" class="lg:hidden text-muted hover:text-ink p-2 -ml-1" aria-label="Abrir menu">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+
+      <div class="flex items-center gap-2.5">
+        <span class="w-9 h-9 rounded-xl bg-gold grid place-items-center text-slate-900">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-7.2-7.2A2 2 0 0 1 2.8 12V4.8A2 2 0 0 1 4.8 2.8H12a2 2 0 0 1 1.4.6l7.2 7.2a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.4" fill="currentColor"/></svg>
+        </span>
+        <span class="font-display font-bold text-lg tracking-tight text-ink">Sellify</span>
+        <span class="hidden sm:inline-flex items-center rounded-full bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 text-[11px] font-semibold px-2.5 py-1">100% Gratuito</span>
+      </div>
+
+      <div class="ml-auto">
+        <button id="themeToggle" type="button" title="Alternar tema"
+          class="w-10 h-10 grid place-items-center rounded-xl border border-line bg-inset text-muted hover:text-accent transition active:scale-95">
+          <svg id="iconMoon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+          <svg id="iconSun" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1.5M12 19.5V21M4.22 4.22l1.06 1.06M18.72 18.72l1.06 1.06M3 12h1.5M19.5 12H21M4.22 19.78l1.06-1.06M18.72 5.28l1.06-1.06M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= SIDEBAR ================= -->
+  <aside id="sidebar" class="fixed top-16 bottom-0 left-0 z-30 w-64 bg-card border-r border-line flex flex-col -translate-x-full lg:translate-x-0 transition-transform duration-200">
+    <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
+      <p class="px-3 pt-2 pb-1 text-xs font-medium text-faint">Calculadoras</p>
+
+      <button data-go="cost" class="nav-item active group relative w-full flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-muted hover:bg-gold/5 hover:text-ink transition">
+        <span class="nav-bar absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r bg-gold opacity-0 transition"></span>
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m-3-3v3m-7 4h14M5 21h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2Z"/></svg>
+        <span class="text-left leading-tight">Calculadora<br class="hidden xl:block" />Mercado Livre</span>
+      </button>
+
+      <button data-go="import" class="nav-item group relative w-full flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-muted hover:bg-gold/5 hover:text-ink transition">
+        <span class="nav-bar absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r bg-gold opacity-0 transition"></span>
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        <span class="text-left leading-tight">Calculadora de<br class="hidden xl:block" />Importação</span>
+      </button>
+    </nav>
+
+    <div class="p-4 border-t border-line">
+      <div class="rounded-xl bg-inset border border-line px-3.5 py-3">
+        <p class="text-xs text-muted leading-relaxed">Idealizado por <span class="font-semibold text-ink">Kenety Motta</span> • Criado via IA</p>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebarBackdrop" class="fixed inset-0 top-16 bg-black/40 z-20 hidden lg:hidden"></div>
+
+  <!-- ================= MAIN ================= -->
+  <main class="lg:pl-64 pt-16">
+    <div class="max-w-6xl mx-auto px-4 lg:px-6 py-6 lg:py-8">
+
+      <!-- ========================================================= -->
+      <!-- VIEW 1: CALCULADORA MERCADO LIVRE                          -->
+      <!-- ========================================================= -->
+      <section id="view-cost" class="view active">
+
+        <!-- Banner de transparência -->
+        <div class="mb-6 rounded-2xl border border-gold/40 bg-gold/10 overflow-hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-4 p-4 lg:p-5">
+            <div class="flex items-start gap-3 flex-1">
+              <span class="w-10 h-10 shrink-0 rounded-xl bg-gold/20 grid place-items-center text-accent">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v2m0 14v2M5.6 5.6l1.4 1.4m10 10 1.4 1.4M4 12H2m20 0h-2M5.6 18.4 7 17m10-10 1.4-1.4M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+              </span>
+              <div>
+                <p class="text-sm leading-relaxed text-ink">
+                  Esta ferramenta foi <strong>100% desenvolvida por Inteligência Artificial</strong> com o objetivo de ajudar todos os vendedores <strong>gratuitamente e sem custos</strong>. Como é um projeto automatizado, pode conter pequenos erros. Caso encontre algo ou tenha sugestões para melhorar ainda mais o sistema, entre em contato.
+                </p>
+                <p class="text-xs text-muted mt-1.5">Criador / Desenvolvedor: <span class="font-semibold text-ink">Kenety Motta</span></p>
+              </div>
+            </div>
+            <div class="shrink-0 flex flex-col gap-2">
+              <a href="https://wa.me/5516992305391?text=Ol%C3%A1!%20Vim%20pelo%20Sellify%20e%20tenho%20uma%20sugest%C3%A3o%20ou%20encontrei%20um%20erro%3A" target="_blank" rel="noopener"
+                class="inline-flex items-center justify-center gap-2 rounded-xl bg-gold hover:bg-goldsoft text-slate-900 font-semibold px-4 py-2.5 text-sm transition active:scale-[.99]">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38c1.45.79 3.08 1.21 4.79 1.21 5.46 0 9.91-4.45 9.91-9.91C21.95 6.45 17.5 2 12.04 2Zm5.8 14.05c-.24.68-1.4 1.3-1.94 1.35-.54.05-1.04.24-3.51-.73-2.97-1.17-4.86-4.23-5.01-4.43-.15-.2-1.2-1.6-1.2-3.05s.76-2.16 1.03-2.46c.27-.3.59-.37.79-.37.2 0 .39 0 .56.01.18.01.42-.07.66.5.24.58.83 2.02.9 2.17.07.15.12.32.02.52-.1.2-.15.32-.3.5-.15.17-.31.39-.44.52-.15.15-.3.31-.13.61.17.3.76 1.25 1.63 2.02 1.12 1 2.06 1.31 2.36 1.46.3.15.47.12.65-.07.17-.2.75-.87.95-1.17.2-.3.39-.25.66-.15.27.1 1.71.81 2 .96.3.15.5.22.57.35.07.12.07.72-.16 1.4Z"/></svg>
+                WhatsApp
+              </a>
+              <a href="mailto:kenety.rauny432@gmail.com?subject=Sellify%20-%20Sugest%C3%A3o%20ou%20erro"
+                class="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-card hover:bg-inset text-ink font-medium px-4 py-2.5 text-sm transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Zm0 1 8 6 8-6"/></svg>
+                E-mail
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <h1 class="font-display text-2xl font-bold text-ink">Calculadora Mercado Livre</h1>
+          <p class="text-sm text-muted mt-1">Descubra o preço ideal de venda ou a margem líquida real por unidade.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          <!-- ---------- COLUNA ESQUERDA: FICHA ---------- -->
+          <div class="bg-card rounded-2xl border border-line transition-colors">
+            <div class="p-5 lg:p-6 border-b border-line">
+              <h2 class="font-display font-semibold text-base text-ink mb-4">Produto e anúncio</h2>
+
+              <div class="flex items-center gap-3 rounded-xl border border-gold/50 bg-gold/10 px-4 py-3.5">
+                <span class="w-10 h-10 rounded-lg bg-gold grid place-items-center text-slate-900 font-display font-bold text-sm">ML</span>
+                <div>
+                  <p class="font-semibold text-ink leading-tight">Mercado Livre</p>
+                  <p class="text-xs text-muted">Marketplace da calculadora</p>
+                </div>
+                <svg class="w-5 h-5 text-accent ml-auto" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.2 14.4-3.9-3.9 1.4-1.4 2.5 2.5 5-5 1.4 1.4-6.4 6.4Z"/></svg>
+              </div>
+
+              <div class="mt-4 rounded-xl bg-inset border border-line p-4">
+                <p class="text-sm font-semibold text-accent mb-1.5">Resumo das taxas do Mercado Livre</p>
+                <ul class="text-xs text-muted leading-relaxed space-y-1">
+                  <li class="flex gap-2"><span class="text-gold">•</span><span>Comissão <strong class="text-ink">Clássico</strong> de 10% a 14% e <strong class="text-ink">Premium</strong> de 15% a 19%.</span></li>
+                  <li class="flex gap-2"><span class="text-gold">•</span><span><strong class="text-ink">Taxa fixa</strong> por unidade em vendas de baixo valor (abaixo de R$ 79).</span></li>
+                  <li class="flex gap-2"><span class="text-gold">•</span><span><strong class="text-ink">Frete grátis</strong> obrigatório em vendas acima de R$ 79.</span></li>
+                </ul>
+              </div>
+
+              <div class="mt-4">
+                <p class="text-sm font-medium text-muted mb-2">Tipo de anúncio</p>
+                <div class="grid grid-cols-2 gap-2" id="listingTypeGroup">
+                  <button type="button" data-listing="classic" class="list-btn rounded-xl border px-4 py-3 text-left transition">
+                    <span class="block text-sm font-semibold text-ink">Clássico</span>
+                    <span class="block text-xs text-muted mt-0.5">Comissão menor</span>
+                  </button>
+                  <button type="button" data-listing="premium" class="list-btn rounded-xl border px-4 py-3 text-left transition">
+                    <span class="block text-sm font-semibold text-ink">Premium</span>
+                    <span class="block text-xs text-muted mt-0.5">12x sem juros</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="p-5 lg:p-6 space-y-4 border-b border-line">
+              <h2 class="font-display font-semibold text-base text-ink">Dados do produto</h2>
+
+              <div>
+                <label class="block text-sm font-medium text-muted mb-1">Custo do Produto (R$)</label>
+                <div class="relative">
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-faint text-sm">R$</span>
+                  <input id="productCost" type="text" inputmode="decimal" autocomplete="off" placeholder="25,00"
+                    class="num w-full rounded-lg border border-line bg-inset pl-10 pr-3 py-2.5 text-sm font-medium text-ink placeholder-faint focus:border-gold/60 focus:ring-2 focus:ring-gold/20 outline-none transition" />
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between rounded-xl bg-inset border border-line px-4 py-3">
+                <div>
+                  <p class="text-sm font-medium text-ink">Incluir Frete no Cálculo</p>
+                  <p class="text-xs text-faint">Somente se você oferece frete grátis</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input id="includeShipping" type="checkbox" class="sr-only peer" />
+                  <div class="w-11 h-6 bg-line rounded-full peer-checked:bg-gold transition-colors"></div>
+                  <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></div>
+                </label>
+              </div>
+
+              <div id="shippingField" class="hidden">
+                <label class="block text-sm font-medium text-muted mb-1">Custo do Frete por unidade (R$)</label>
+                <div class="relative">
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-faint text-sm">R$</span>
+                  <input id="shippingCost" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00"
+                    class="num w-full rounded-lg border border-line bg-inset pl-10 pr-3 py-2.5 text-sm font-medium text-ink placeholder-faint focus:border-gold/60 focus:ring-2 focus:ring-gold/20 outline-none transition" />
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-muted mb-1">Alíquota de Imposto (%)</label>
+                <div class="relative">
+                  <input id="taxRate" type="text" inputmode="decimal" autocomplete="off" value="6"
+                    class="num w-full rounded-lg border border-line bg-inset pl-3 pr-9 py-2.5 text-sm font-medium text-ink focus:border-gold/60 focus:ring-2 focus:ring-gold/20 outline-none transition" />
+                  <span class="absolute right-3 top-1/2 -translate-y-1/2 text-faint text-sm">%</span>
+                </div>
+                <p class="text-xs text-faint mt-1">Ex.: 6% Simples Nacional</p>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-muted mb-1">Simular Unidades Vendidas</label>
+                <div class="relative">
+                  <input id="unitsSimulated" type="text" inputmode="numeric" autocomplete="off" value="100"
+                    class="num w-full rounded-lg border border-line bg-inset pl-3 pr-16 py-2.5 text-sm font-medium text-ink focus:border-gold/60 focus:ring-2 focus:ring-gold/20 outline-none transition" />
+                  <span class="absolute right-3 top-1/2 -translate-y-1/2 text-faint text-sm">un</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="p-5 lg:p-6">
+              <h2 class="font-display font-semibold text-base text-ink mb-4">Modo de cálculo</h2>
+              <div class="grid grid-cols-2 gap-2 mb-4" id="modeGroup">
+                <button type="button" data-mode="margin" class="mode-btn rounded-xl border px-4 py-3 text-left transition">
+                  <span class="block text-sm font-semibold text-ink">Definir Margem</span>
+                  <span class="block text-xs text-muted mt-0.5">Calcula o preço</span>
+                </button>
+                <button type="button" data-mode="price" class="mode-btn rounded-xl border px-4 py-3 text-left transition">
+                  <span class="block text-sm font-semibold text-ink">Definir Valor</span>
+                  <span class="block text-xs text-muted mt-0.5">Calcula a margem</span>
+                </button>
+              </div>
+
+              <div id="modeMarginPanel">
+                <div class="flex items-center justify-between mb-2">
+                  <label class="text-sm font-medium text-muted">Margem desejada</label>
+                  <span id="marginValueLabel" class="num text-sm font-bold text-accent">20%</span>
+                </div>
+                <input id="marginSlider" type="range" min="5" max="70" step="1" value="20" class="sell-range w-full" />
+                <div class="flex justify-between text-[11px] text-faint mt-1 num"><span>5%</span><span>70%</span></div>
+              </div>
+
+              <div id="modePricePanel" class="hidden">
+                <label class="block text-sm font-medium text-muted mb-1">Valor de venda desejado (R$)</label>
+                <div class="relative">
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-faint text-sm">R$</span>
+                  <input id="saleValue" type="text" inputmode="decimal" autocomplete="off" placeholder="100,00"
+                    class="num w-full rounded-lg border border-line bg-inset pl-10 pr-3 py-2.5 text-sm font-medium text-ink placeholder-faint focus:border-gold/60 focus:ring-2 focus:ring-gold/20 outline-none transition" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ---------- COLUNA DIREITA: RECIBO ---------- -->
+          <div class="space-y-6">
+
+            <!-- Placeholder -->
+            <div id="costPlaceholder" class="bg-card rounded-2xl border border-dashed border-line p-10 flex flex-col items-center justify-center text-center min-h-[280px] transition-colors">
+              <div class="w-16 h-16 rounded-2xl bg-inset border border-line grid place-items-center mb-4">
+                <svg class="w-8 h-8 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m-3-3v3m-7 4h14M5 21h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2Z"/></svg>
+              </div>
+              <h3 class="font-display font-semibold text-ink mb-1">Informe o custo do produto</h3>
+              <p class="text-sm text-muted max-w-xs">Preencha o custo de aquisição para ver o preço recomendado, o extrato de custos e o lucro líquido em tempo real.</p>
+            </div>
+
+            <!-- Recibo de resultado -->
+            <div id="costResult" class="receipt bg-card rounded-2xl border border-line overflow-hidden hidden transition-colors">
+
+              <div class="px-6 pt-6 pb-5 bg-gold/10">
+                <p id="heroLabel" class="text-sm text-accent font-medium">Preço de venda recomendado</p>
+                <p id="heroValue" class="font-display num text-5xl font-bold tracking-tight text-ink mt-2">R$ 0,00</p>
+                <div class="flex flex-wrap gap-2 mt-4">
+                  <span class="inline-flex items-center gap-1.5 rounded-lg bg-card border border-line px-3 py-1.5 text-xs text-muted">
+                    Lucro/un: <span id="heroProfit" class="num font-bold text-emerald-500">R$ 0,00</span>
+                  </span>
+                  <span class="inline-flex items-center gap-1.5 rounded-lg bg-card border border-line px-3 py-1.5 text-xs text-muted">
+                    Margem real: <span id="heroMargin" class="num font-bold text-accent">0,0%</span>
+                  </span>
+                </div>
+              </div>
+
+              <div class="perforated"></div>
+
+              <div class="px-6 py-4">
+                <p class="text-xs font-medium text-faint mb-2">Extrato de custos por unidade</p>
+                <dl class="text-sm">
+                  <div class="flex items-center justify-between py-2 border-b border-line/60">
+                    <dt class="text-muted">Preço de venda</dt>
+                    <dd id="rowPrice" class="num font-semibold text-ink">R$ 0,00</dd>
+                  </div>
+                  <div class="flex items-center justify-between py-2 border-b border-line/60">
+                    <dt class="text-muted">Comissão Mercado Livre <span id="rowCommissionPct" class="text-faint">(0%)</span></dt>
+                    <dd id="rowCommission" class="num font-semibold text-rose-500">R$ 0,00</dd>
+                  </div>
+                  <div class="flex items-center justify-between py-2 border-b border-line/60">
+                    <dt class="text-muted">Taxa fixa por unidade</dt>
+                    <dd id="rowFixed" class="num font-semibold text-rose-500">R$ 0,00</dd>
+                  </div>
+                  <div class="flex items-center justify-between py-2 border-b border-line/60">
+                    <dt class="text-muted">Frete</dt>
+                    <dd id="rowShipping" class="num font-semibold text-rose-500">R$ 0,00</dd>
+                  </div>
+                  <div class="flex items-center justify-between py-2 border-b border-line/60">
+                    <dt class="text-muted">Imposto <span id="rowTaxPct" class="text-faint">(0%)</span></dt>
+                    <dd id="rowTax" class="num font-semibold text-rose-500">R$ 0,00</dd>
+                  </div>
+                  <div class="flex items-center justify-between py-2">
+                    <dt class="text-muted">Custo do produto</dt>
+                    <dd id="rowCost" class="num font-semibold text-rose-500">R$ 0,00</dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div class="px-6 py-4 bg-inset border-t border-line">
+                <div class="flex items-center justify-between">
+                  <span class="font-display font-semibold text-ink">Lucro líquido por unidade</span>
+                  <span id="rowNet" class="num font-display font-bold text-xl text-emerald-500">R$ 0,00</span>
+                </div>
+              </div>
+
+              <div class="px-6 py-5 grid grid-cols-3 gap-3 border-t border-line">
+                <div>
+                  <p class="text-xs text-faint">Margem real</p>
+                  <p id="statMargin" class="num font-display font-bold text-lg text-accent mt-1">0,0%</p>
+                </div>
+                <div>
+                  <p class="text-xs text-faint">Unidades</p>
+                  <p id="statUnits" class="num font-display font-bold text-lg text-ink mt-1">0</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-xs text-faint">Lucro total projetado</p>
+                  <p id="statTotal" class="num font-display font-bold text-lg text-emerald-500 mt-1">R$ 0,00</p>
+                </div>
+              </div>
+
+              <p id="costWarning" class="hidden px-6 py-3 text-xs font-medium text-rose-500 bg-rose-500/10" role="alert"></p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================= -->
+      <!-- VIEW 2: CALCULADORA DE IMPORTAÇÃO                         -->
+      <!-- ========================================================= -->
+      <section id="view-import" class="view">
+        <div class="mb-6">
+          <h1 class="font-display text-2xl font-bold text-ink">Calculadora de Importação</h1>
+          <p class="text-sm text-muted mt-1">Regime de Tributação Simplificada (RTS) — remessas até US$ 3.000.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          <!-- COLUNA ESQUERDA: INPUTS -->
+          <section class="bg-card rounded-2xl border border-line transition-colors">
+            <div class="p-5 lg:p-6 border-b border-line">
+              <div class="flex items-center justify-between mb-5">
+                <h2 class="font-display font-semibold text-base text-ink">Dados da remessa</h2>
+                <div class="inline-flex rounded-lg bg-inset p-1 text-sm" id="currencyToggle">
+                  <button type="button" data-currency="USD"
+                    class="cur-btn px-3 py-1.5 rounded-md font-medium transition bg-card text-ink shadow-sm">Valores em US$</button>
+                  <button type="button" data-currency="BRL"
+                    class="cur-btn px-3 py-1.5 rounded-md font-medium transition text-muted">Valores em R$</button>
+                </div>
+              </div>
+
+              <h3 class="font-display font-semibold text-sm text-ink mb-4">Valores da remessa</h3>
+
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-muted mb-1">
+                    Taxa de câmbio <span class="text-faint font-normal">(R$ por US$)</span>
+                  </label>
+                  <div class="flex gap-2">
+                    <div class="relative flex-1">
+                      <span class="absolute left-3 top-1/2 -translate-y-1/2 text-faint text-sm">R$</span>
+                      <input id="exchange" type="text" inputmode="decimal" autocomplete="off" value="5,20"
+                        class="num w-full rounded-lg border border-line bg-inset pl-9 pr-3 py-2.5 text-sm font-medium text-ink focus:border-gold/60 focus:ring-2 focus:ring-gold/20 outline-none transition" />
+                    </div>
+                    <button id="fetchRateBtn" type="button" title="Buscar cotação atual do dólar"
+                      class="shrink-0 rounded-lg border border-gold/40 bg-gold/10 hover:bg-gold/20 text-accent font-semibold px-3 py-2.5 text-sm transition active:scale-[.98] disabled:opacity-60">
+                      Buscar
+                    </button>
+                  </div>
+                  <p id="rateHint" class="text-xs text-faint mt-1 h-4"></p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-sm font-medium text-muted mb-1" id="unitLabel">Valor unitário (US$)</label>
+                    <div class="relative">
+                      <span class="currency-prefix absolute left-3 top-1/2 -translate-y-1/2 text-faint text-sm">US$</span>
+                      <input id="unit" type="text" inputmode="decimal" autocomplete="off" value="0,35"
+                        class="num w-full rounded-lg border border-line bg-inset pl-12 pr-3 py-2.5 text-sm font-medium text-ink focus:border-gold/60 focus:ring-2 focus:ring-gold/20 outline-none transition" />
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-muted mb-1">Quantidade (peças)</label>
+                    <input id="qty" type="text" inputmode="numeric" autocomplete="off" value="1000"
+                      class="num w-full rounded-lg border border-line bg-inset px-3 py-2.5 text-sm font-medium text-ink focus:border-gold/60 focus:ring-2 focus:ring-gold/20 outline-none transition" />
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-between rounded-lg bg-gold/10 border border-gold/20 px-4 py-3">
+                  <span class="text-sm text-muted">Subtotal</span>
+                  <span id="subtotal" class="num font-bold text-accent text-sm">US$ 350,00</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-sm font-medium text-muted mb-1">
+                      Frete internacional <span class="text-faint font-normal">(opcional)</span>
+                    </label>
+                    <div class="relative">
+                      <span class="currency-prefix absolute left-3 top-1/2 -translate-y-1/2 text-faint text-sm">US$</span>
+                      <input id="freight" type="text" inputmode="decimal" autocomplete="off" value="293,46"
+                        class="num w-full rounded-lg border border-line bg-inset pl-12 pr-3 py-2.5 text-sm font-medium text-ink focus:border-gold/60 focus:ring-2 focus:ring-gold/20 outline-none transition" />
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-muted mb-1">
+                      Seguro internacional <span class="text-faint font-normal">(opcional)</span>
+                    </label>
+                    <div class="relative">
+                      <span class="currency-prefix absolute left-3 top-1/2 -translate-y-1/2 text-faint text-sm">US$</span>
+                      <input id="insurance" type="text" inputmode="decimal" autocomplete="off" value="0"
+                        class="num w-full rounded-lg border border-line bg-inset pl-12 pr-3 py-2.5 text-sm font-medium text-ink focus:border-gold/60 focus:ring-2 focus:ring-gold/20 outline-none transition" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="p-5 lg:p-6">
+              <h3 class="font-display font-semibold text-sm text-ink mb-4">Alíquotas</h3>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-sm font-medium text-muted mb-1">Imposto de Importação (%)</label>
+                  <div class="relative">
+                    <input id="iiRate" type="text" inputmode="decimal" autocomplete="off" value="60"
+                      class="num w-full rounded-lg border border-line bg-inset pr-9 pl-3 py-2.5 text-sm font-medium text-ink focus:border-gold/60 focus:ring-2 focus:ring-gold/20 outline-none transition" />
+                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-faint text-sm">%</span>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-muted mb-1">ICMS (%) <span class="text-faint font-normal">por dentro</span></label>
+                  <div class="relative">
+                    <input id="icmsRate" type="text" inputmode="decimal" autocomplete="off" value="18"
+                      class="num w-full rounded-lg border border-line bg-inset pr-9 pl-3 py-2.5 text-sm font-medium text-ink focus:border-gold/60 focus:ring-2 focus:ring-gold/20 outline-none transition" />
+                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-faint text-sm">%</span>
+                  </div>
+                </div>
+              </div>
+              <p id="rateError" class="hidden mt-3 text-xs font-medium text-rose-500" role="alert"></p>
+            </div>
+          </section>
+
+          <!-- COLUNA DIREITA: RESULTADOS -->
+          <section class="space-y-6">
+            <div class="receipt bg-card rounded-2xl border border-line overflow-hidden transition-colors">
+              <div class="px-6 pt-6 pb-5 bg-gold/10">
+                <p class="text-sm text-accent font-medium">Custo total da importação</p>
+                <p id="totalCost" class="font-display num text-4xl font-bold tracking-tight text-ink mt-2">R$ 6.528,76</p>
+              </div>
+              <div class="perforated"></div>
+              <div class="px-6 py-4 grid grid-cols-2 gap-4">
+                <div>
+                  <p class="text-xs text-faint">Custo unitário</p>
+                  <p id="unitCost" class="num font-display font-bold text-lg text-ink mt-1">R$ 6,53</p>
+                </div>
+                <div>
+                  <p class="text-xs text-faint">Carga tributária</p>
+                  <p id="taxBurden" class="num font-display font-bold text-lg text-accent mt-1">95,1%</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-card rounded-2xl border border-line p-5 lg:p-6 transition-colors">
+              <h3 class="font-display font-semibold text-sm text-ink mb-4">Detalhamento dos valores</h3>
+              <dl class="text-sm">
+                <div class="flex items-center justify-between py-2 border-b border-line/60">
+                  <dt class="text-muted">Valor aduaneiro (CIF)</dt>
+                  <dd id="cif" class="num font-semibold text-ink">R$ 3.345,99</dd>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-line/60">
+                  <dt class="text-muted">Imposto de Importação <span id="iiRateLabel" class="text-faint">(60%)</span></dt>
+                  <dd id="iiValue" class="num font-semibold text-ink">R$ 2.007,60</dd>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-line/60">
+                  <dt class="text-muted">ICMS <span id="icmsRateLabel" class="text-faint">(18%)</span></dt>
+                  <dd id="icmsValue" class="num font-semibold text-ink">R$ 1.175,18</dd>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-line/60">
+                  <dt class="text-muted font-medium">Total de tributos</dt>
+                  <dd id="totalTaxes" class="num font-semibold text-rose-500">R$ 3.182,78</dd>
+                </div>
+                <div class="flex items-center justify-between py-2">
+                  <dt class="font-semibold text-ink">Custo total</dt>
+                  <dd id="totalCost2" class="num font-bold text-ink">R$ 6.528,76</dd>
+                </div>
+              </dl>
+            </div>
+
+            <div class="bg-card rounded-2xl border border-line p-5 lg:p-6 transition-colors">
+              <h3 class="font-display font-semibold text-sm text-ink mb-4">Distribuição de custos</h3>
+              <div class="flex w-full h-4 rounded-full overflow-hidden bg-inset mb-4">
+                <div id="barVA" class="bar-segment bg-gold h-full" style="width:51.2%"></div>
+                <div id="barII" class="bar-segment bg-amber-600 h-full" style="width:30.7%"></div>
+                <div id="barICMS" class="bar-segment bg-rose-500 h-full" style="width:18.0%"></div>
+              </div>
+              <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="rounded-lg bg-inset py-2">
+                  <div class="flex items-center justify-center gap-1.5 mb-0.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-gold"></span>
+                    <span class="text-xs text-faint">Valor Aduaneiro</span>
+                  </div>
+                  <span id="pctVA" class="num text-sm font-bold text-ink">51,2%</span>
+                </div>
+                <div class="rounded-lg bg-inset py-2">
+                  <div class="flex items-center justify-center gap-1.5 mb-0.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-amber-600"></span>
+                    <span class="text-xs text-faint">II</span>
+                  </div>
+                  <span id="pctII" class="num text-sm font-bold text-ink">30,7%</span>
+                </div>
+                <div class="rounded-lg bg-inset py-2">
+                  <div class="flex items-center justify-center gap-1.5 mb-0.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                    <span class="text-xs text-faint">ICMS</span>
+                  </div>
+                  <span id="pctICMS" class="num text-sm font-bold text-ink">18,0%</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <button id="copyBtn" type="button"
+                class="rounded-xl bg-gold hover:bg-goldsoft text-slate-900 font-semibold py-3 text-sm transition active:scale-[.99]">
+                Copiar resumo
+              </button>
+              <button id="pdfBtn" type="button"
+                class="rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 text-sm transition active:scale-[.99]">
+                Exportar PDF
+              </button>
+              <button id="saveBtn" type="button"
+                class="rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold py-3 text-sm transition active:scale-[.99]">
+                Salvar simulação
+              </button>
+              <button id="clearBtn" type="button"
+                class="rounded-xl border border-line bg-inset hover:bg-card text-muted font-semibold py-3 text-sm transition active:scale-[.99]">
+                Limpar
+              </button>
+            </div>
+            <p id="copyFeedback" class="text-center text-xs text-emerald-500 h-4 opacity-0 transition-opacity">Resumo copiado!</p>
+
+            <div id="historyCard" class="bg-card rounded-2xl border border-line p-5 lg:p-6 hidden transition-colors">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="font-display font-semibold text-sm text-ink">Histórico de simulações</h3>
+                <button id="clearHistoryBtn" type="button" class="text-xs text-faint hover:text-rose-500 transition">Apagar tudo</button>
+              </div>
+              <ul id="historyList" class="space-y-2 max-h-72 overflow-y-auto"></ul>
+            </div>
+          </section>
+        </div>
+
+        <p class="text-center text-xs text-faint mt-8">
+          Cálculo informativo. Confirme alíquotas e legislação vigente junto à Receita Federal e à SEFAZ do seu estado.
+        </p>
+      </section>
+
+    </div>
+  </main>
+
+  <div id="printArea"></div>
+
+  <!-- ========================================================= -->
+  <!-- THEME + NAV / SHELL                                        -->
+  <!-- ========================================================= -->
+  <script>
+  (function () {
+    'use strict';
+
+    var root = document.documentElement;
+    function syncThemeIcon() {
+      var dark = root.classList.contains('dark');
+      document.getElementById('iconMoon').classList.toggle('hidden', !dark);
+      document.getElementById('iconSun').classList.toggle('hidden', dark);
+    }
+    document.getElementById('themeToggle').addEventListener('click', function () {
+      var dark = root.classList.toggle('dark');
+      try { localStorage.setItem('sellify_theme', dark ? 'dark' : 'light'); } catch (e) {}
+      syncThemeIcon();
+    });
+    syncThemeIcon();
+
+    var sidebar = document.getElementById('sidebar');
+    var backdrop = document.getElementById('sidebarBackdrop');
+    function closeSidebar() { sidebar.classList.add('-translate-x-full'); backdrop.classList.add('hidden'); }
+    function openSidebar() { sidebar.classList.remove('-translate-x-full'); backdrop.classList.remove('hidden'); }
+    document.getElementById('sidebarToggle').addEventListener('click', function () {
+      sidebar.classList.contains('-translate-x-full') ? openSidebar() : closeSidebar();
+    });
+    backdrop.addEventListener('click', closeSidebar);
+
+    var views = { cost: document.getElementById('view-cost'), import: document.getElementById('view-import') };
+    function go(view) {
+      Object.keys(views).forEach(function (k) { views[k].classList.toggle('active', k === view); });
+      document.querySelectorAll('.nav-item').forEach(function (b) {
+        b.classList.toggle('active', b.getAttribute('data-go') === view);
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      closeSidebar();
+    }
+    document.querySelectorAll('[data-go]').forEach(function (b) {
+      b.addEventListener('click', function () { go(b.getAttribute('data-go')); });
+    });
+  })();
+  </script>
+
+  <!-- ========================================================= -->
+  <!-- MERCADO LIVRE CALCULATOR                                   -->
+  <!-- ========================================================= -->
+  <script>
+  (function () {
+    'use strict';
+    var el = function (id) { return document.getElementById(id); };
+
+    var ML = {
+      classic: { commission: 0.12, fixed: 6, threshold: 79 },
+      premium: { commission: 0.17, fixed: 6, threshold: 79 }
+    };
+
+    var state = { listing: 'classic', mode: 'margin' };
+
+    function parseNum(str) {
+      if (str == null) return 0;
+      var s = String(str).trim().replace(/\s/g, '').replace(/R\$/gi, '');
+      if (!s) return 0;
+      var hasDot = s.indexOf('.') > -1, hasComma = s.indexOf(',') > -1;
+      if (hasDot && hasComma) s = s.replace(/\./g, '').replace(',', '.');
+      else if (hasComma) s = s.replace(',', '.');
+      var v = parseFloat(s);
+      return isNaN(v) ? 0 : v;
+    }
+    function brl(v) { if (!isFinite(v)) v = 0; return 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function pct(v) { if (!isFinite(v)) v = 0; return v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'; }
+    function int(v) { if (!isFinite(v)) v = 0; return Math.round(v).toLocaleString('pt-BR'); }
+    function fixedFor(price, cfg) { return price > 0 && price < cfg.threshold ? cfg.fixed : 0; }
+
+    function refreshControls() {
+      Array.prototype.forEach.call(el('listingTypeGroup').children, function (b) {
+        var on = b.getAttribute('data-listing') === state.listing;
+        b.classList.toggle('border-gold', on);
+        b.classList.toggle('bg-gold/10', on);
+        b.classList.toggle('border-line', !on);
+        b.classList.toggle('bg-inset', !on);
+      });
+      Array.prototype.forEach.call(el('modeGroup').children, function (b) {
+        var on = b.getAttribute('data-mode') === state.mode;
+        b.classList.toggle('border-gold', on);
+        b.classList.toggle('bg-gold/10', on);
+        b.classList.toggle('border-line', !on);
+        b.classList.toggle('bg-inset', !on);
+      });
+    }
+
+    Array.prototype.forEach.call(el('listingTypeGroup').children, function (b) {
+      b.addEventListener('click', function () { state.listing = b.getAttribute('data-listing'); refreshControls(); calculate(); });
+    });
+    Array.prototype.forEach.call(el('modeGroup').children, function (b) {
+      b.addEventListener('click', function () {
+        state.mode = b.getAttribute('data-mode');
+        var isMargin = state.mode === 'margin';
+        el('modeMarginPanel').classList.toggle('hidden', !isMargin);
+        el('modePricePanel').classList.toggle('hidden', isMargin);
+        refreshControls(); calculate();
+      });
+    });
+
+    var inCost = el('productCost');
+    var inShipToggle = el('includeShipping');
+    var inShip = el('shippingCost');
+    var inTax = el('taxRate');
+    var inUnits = el('unitsSimulated');
+    var inSlider = el('marginSlider');
+    var inSale = el('saleValue');
+
+    inShipToggle.addEventListener('change', function () {
+      el('shippingField').classList.toggle('hidden', !inShipToggle.checked);
+      calculate();
+    });
+    [inCost, inShip, inTax, inUnits, inSale].forEach(function (i) {
+      i.addEventListener('input', calculate);
+      i.addEventListener('change', calculate);
+    });
+    inSlider.addEventListener('input', function () {
+      el('marginValueLabel').textContent = inSlider.value + '%';
+      calculate();
+    });
+    el('marginValueLabel').textContent = inSlider.value + '%';
+
+    function compute() {
+      var cfg = ML[state.listing];
+      var cost = parseNum(inCost.value);
+      var commissionRate = cfg.commission;
+      var taxRate = parseNum(inTax.value) / 100;
+      var shipping = inShipToggle.checked ? parseNum(inShip.value) : 0;
+      var units = parseNum(inUnits.value);
+
+      if (cost <= 0) return null;
+
+      var price, fixed;
+      if (state.mode === 'margin') {
+        var targetMargin = parseNum(inSlider.value) / 100;
+        var denom = 1 - commissionRate - taxRate - targetMargin;
+        if (denom <= 0) return { invalid: true };
+        price = (cost + fixedFor(cost, cfg) + shipping) / denom;
+        for (var i = 0; i < 25; i++) {
+          fixed = fixedFor(price, cfg);
+          price = (cost + fixed + shipping) / denom;
+        }
+        fixed = fixedFor(price, cfg);
+      } else {
+        price = parseNum(inSale.value);
+        if (price <= 0) return { zeroPrice: true };
+        fixed = fixedFor(price, cfg);
+      }
+
+      var commission = price * commissionRate;
+      var tax = price * taxRate;
+      var profit = price - commission - fixed - shipping - tax - cost;
+      var margin = price > 0 ? profit / price : 0;
+
+      return {
+        price: price, commission: commission, commissionRate: commissionRate,
+        fixed: fixed, shipping: shipping, tax: tax, taxRate: taxRate, cost: cost,
+        profit: profit, margin: margin, units: units,
+        totalProfit: profit * units
+      };
+    }
+
+    function calculate() {
+      var r = compute();
+      if (!r) { el('costResult').classList.add('hidden'); el('costPlaceholder').classList.remove('hidden'); return; }
+      el('costPlaceholder').classList.add('hidden');
+      el('costResult').classList.remove('hidden');
+
+      var warn = el('costWarning');
+      if (r.invalid) {
+        warn.textContent = 'Margem desejada muito alta: comissão + imposto + margem somam 100% ou mais. Reduza a margem.';
+        warn.classList.remove('hidden');
+        return;
+      } else if (r.zeroPrice) {
+        warn.textContent = 'Informe um valor de venda válido para calcular a margem.';
+        warn.classList.remove('hidden');
+        return;
+      }
+      warn.classList.add('hidden');
+
+      el('heroLabel').textContent = state.mode === 'margin' ? 'Preço de venda recomendado' : 'Margem de lucro resultante';
+      el('heroValue').textContent = state.mode === 'margin' ? brl(r.price) : pct(r.margin * 100);
+      el('heroProfit').textContent = brl(r.profit);
+      el('heroMargin').textContent = pct(r.margin * 100);
+
+      el('rowPrice').textContent = brl(r.price);
+      el('rowCommissionPct').textContent = '(' + pct(r.commissionRate * 100) + ')';
+      el('rowCommission').textContent = '- ' + brl(r.commission);
+      el('rowFixed').textContent = r.fixed > 0 ? '- ' + brl(r.fixed) : brl(0);
+      el('rowShipping').textContent = r.shipping > 0 ? '- ' + brl(r.shipping) : brl(0);
+      el('rowTaxPct').textContent = '(' + pct(r.taxRate * 100) + ')';
+      el('rowTax').textContent = '- ' + brl(r.tax);
+      el('rowCost').textContent = '- ' + brl(r.cost);
+      setProfitColor(el('rowNet'), r.profit, brl(r.profit));
+      setProfitColor(el('heroProfit'), r.profit, brl(r.profit));
+
+      el('statMargin').textContent = pct(r.margin * 100);
+      el('statUnits').textContent = int(r.units);
+      setProfitColor(el('statTotal'), r.totalProfit, brl(r.totalProfit));
+
+      try {
+        localStorage.setItem('sellify_ml_v1', JSON.stringify({
+          listing: state.listing, mode: state.mode,
+          cost: inCost.value, shippingCost: inShip.value, includeShipping: inShipToggle.checked,
+          taxRate: inTax.value, units: inUnits.value, margin: inSlider.value, sale: inSale.value
+        }));
+      } catch (e) {}
+    }
+
+    function setProfitColor(node, v, text) {
+      node.textContent = text;
+      node.classList.remove('text-emerald-500', 'text-rose-500');
+      node.classList.add(v >= 0 ? 'text-emerald-500' : 'text-rose-500');
+    }
+
+    function restore() {
+      var s;
+      try { s = JSON.parse(localStorage.getItem('sellify_ml_v1')); } catch (e) { return; }
+      if (!s || typeof s !== 'object') return;
+      if (s.listing === 'classic' || s.listing === 'premium') state.listing = s.listing;
+      if (s.mode === 'margin' || s.mode === 'price') state.mode = s.mode;
+      if (typeof s.cost === 'string') inCost.value = s.cost;
+      if (typeof s.shippingCost === 'string') inShip.value = s.shippingCost;
+      inShipToggle.checked = !!s.includeShipping;
+      el('shippingField').classList.toggle('hidden', !inShipToggle.checked);
+      if (typeof s.taxRate === 'string') inTax.value = s.taxRate;
+      if (typeof s.units === 'string') inUnits.value = s.units;
+      if (typeof s.margin === 'string') inSlider.value = s.margin;
+      if (typeof s.sale === 'string') inSale.value = s.sale;
+      var isMargin = state.mode === 'margin';
+      el('modeMarginPanel').classList.toggle('hidden', !isMargin);
+      el('modePricePanel').classList.toggle('hidden', isMargin);
+      el('marginValueLabel').textContent = inSlider.value + '%';
+    }
+
+    restore();
+    refreshControls();
+    calculate();
+  })();
+  </script>
+
+  <!-- ========================================================= -->
+  <!-- IMPORT CALCULATOR                                          -->
+  <!-- ========================================================= -->
+  <script>
+  (function () {
+    'use strict';
+
+    var currency = 'USD';
+    var STATE_KEY = 'sellify_import_v1';
+
+    var el = function (id) { return document.getElementById(id); };
+    var inputs = {
+      exchange: el('exchange'),
+      unit: el('unit'),
+      qty: el('qty'),
+      freight: el('freight'),
+      insurance: el('insurance'),
+      iiRate: el('iiRate'),
+      icmsRate: el('icmsRate')
+    };
+
+    function parseNum(str) {
+      if (str == null) return 0;
+      var s = String(str).trim().replace(/\s/g, '').replace(/R\$/gi, '').replace(/US\$/gi, '');
+      if (!s) return 0;
+      var hasDot = s.indexOf('.') > -1;
+      var hasComma = s.indexOf(',') > -1;
+      if (hasDot && hasComma) {
+        s = s.replace(/\./g, '').replace(',', '.');
+      } else if (hasComma) {
+        s = s.replace(',', '.');
+      }
+      var v = parseFloat(s);
+      return isNaN(v) ? 0 : v;
+    }
+
+    function toNumber(input) { return parseNum(input.value); }
+
+    function toInputValue(v, decimals) {
+      if (!isFinite(v)) v = 0;
+      return v.toFixed(decimals).replace('.', ',');
+    }
+
+    function formatBRL(v) {
+      return 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function formatUSD(v) {
+      return 'US$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function formatPct(v) {
+      return v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+    }
+
+    function validateRates() {
+      var iiRaw = parseNum(inputs.iiRate.value);
+      var icmsRaw = parseNum(inputs.icmsRate.value);
+      var iiFilled = inputs.iiRate.value.trim() !== '';
+      var icmsFilled = inputs.icmsRate.value.trim() !== '';
+      var iiValid = iiRaw >= 0 && iiRaw <= 100;
+      var icmsValid = icmsRaw >= 0 && icmsRaw < 100;
+
+      var msgs = [];
+      if (iiFilled && !iiValid) msgs.push('Imposto de Importação deve estar entre 0% e 100%.');
+      if (icmsFilled && !icmsValid) msgs.push('ICMS deve estar entre 0% e 99%.');
+
+      var box = el('rateError');
+      if (msgs.length) {
+        box.textContent = msgs.join(' ');
+        box.classList.remove('hidden');
+      } else {
+        box.textContent = '';
+        box.classList.add('hidden');
+      }
+      var iiBad = iiFilled && !iiValid;
+      var icmsBad = icmsFilled && !icmsValid;
+      inputs.iiRate.classList.toggle('border-rose-400', iiBad);
+      inputs.iiRate.classList.toggle('border-line', !iiBad);
+      inputs.icmsRate.classList.toggle('border-rose-400', icmsBad);
+      inputs.icmsRate.classList.toggle('border-line', !icmsBad);
+
+      return {
+        ii: Math.min(Math.max(iiRaw, 0), 100),
+        icms: Math.min(Math.max(icmsRaw, 0), 99.9999)
+      };
+    }
+
+    function calculate() {
+      var rate = toNumber(inputs.exchange);
+      var unit = toNumber(inputs.unit);
+      var qty = toNumber(inputs.qty);
+      var freight = toNumber(inputs.freight);
+      var insurance = toNumber(inputs.insurance);
+      var rates = validateRates();
+      var iiRate = rates.ii;
+      var icmsRate = rates.icms;
+
+      var subtotal = unit * qty;
+      var cifSource = subtotal + freight + insurance;
+      var cif = currency === 'USD' ? cifSource * rate : cifSource;
+
+      var ii = cif * (iiRate / 100);
+      var icmsBase = icmsRate >= 100 ? 0 : (cif + ii) / (1 - icmsRate / 100);
+      var icms = icmsBase * (icmsRate / 100);
+      var totalTaxes = ii + icms;
+      var totalCost = cif + totalTaxes;
+      var unitCost = qty > 0 ? totalCost / qty : 0;
+      var taxBurden = cif > 0 ? (totalTaxes / cif) * 100 : 0;
+
+      var pctVA = totalCost > 0 ? (cif / totalCost) * 100 : 0;
+      var pctII = totalCost > 0 ? (ii / totalCost) * 100 : 0;
+      var pctICMS = totalCost > 0 ? (icms / totalCost) * 100 : 0;
+
+      el('subtotal').textContent = (currency === 'USD' ? formatUSD(subtotal) : formatBRL(subtotal));
+      el('totalCost').textContent = formatBRL(totalCost);
+      el('unitCost').textContent = formatBRL(unitCost);
+      el('taxBurden').textContent = formatPct(taxBurden);
+
+      el('cif').textContent = formatBRL(cif);
+      el('iiValue').textContent = formatBRL(ii);
+      el('icmsValue').textContent = formatBRL(icms);
+      el('totalTaxes').textContent = formatBRL(totalTaxes);
+      el('totalCost2').textContent = formatBRL(totalCost);
+      el('iiRateLabel').textContent = '(' + iiRate.toLocaleString('pt-BR') + '%)';
+      el('icmsRateLabel').textContent = '(' + icmsRate.toLocaleString('pt-BR') + '%)';
+
+      el('barVA').style.width = pctVA + '%';
+      el('barII').style.width = pctII + '%';
+      el('barICMS').style.width = pctICMS + '%';
+      el('pctVA').textContent = formatPct(pctVA);
+      el('pctII').textContent = formatPct(pctII);
+      el('pctICMS').textContent = formatPct(pctICMS);
+
+      saveState();
+
+      return {
+        rate: rate, unit: unit, qty: qty, freight: freight, insurance: insurance,
+        subtotal: subtotal, cif: cif, ii: ii, icms: icms,
+        totalTaxes: totalTaxes, totalCost: totalCost, unitCost: unitCost,
+        taxBurden: taxBurden, pctVA: pctVA, pctII: pctII, pctICMS: pctICMS,
+        iiRate: iiRate, icmsRate: icmsRate
+      };
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STATE_KEY, JSON.stringify({
+          currency: currency,
+          exchange: inputs.exchange.value,
+          unit: inputs.unit.value,
+          qty: inputs.qty.value,
+          freight: inputs.freight.value,
+          insurance: inputs.insurance.value,
+          iiRate: inputs.iiRate.value,
+          icmsRate: inputs.icmsRate.value
+        }));
+      } catch (e) {}
+    }
+
+    function restoreState() {
+      var s;
+      try { s = JSON.parse(localStorage.getItem(STATE_KEY)); } catch (e) { return; }
+      if (!s || typeof s !== 'object') return;
+      if (s.currency === 'BRL' || s.currency === 'USD') currency = s.currency;
+      ['exchange', 'unit', 'qty', 'freight', 'insurance', 'iiRate', 'icmsRate'].forEach(function (k) {
+        if (typeof s[k] === 'string') inputs[k].value = s[k];
+      });
+    }
+
+    Object.keys(inputs).forEach(function (k) {
+      inputs[k].addEventListener('input', calculate);
+      inputs[k].addEventListener('change', calculate);
+    });
+
+    var curButtons = document.querySelectorAll('.cur-btn');
+
+    function updateCurrencyControls() {
+      var usd = currency === 'USD';
+      inputs.exchange.disabled = !usd;
+      inputs.exchange.classList.toggle('opacity-50', !usd);
+      el('fetchRateBtn').disabled = !usd;
+      el('fetchRateBtn').classList.toggle('opacity-50', !usd);
+      el('fetchRateBtn').classList.toggle('cursor-not-allowed', !usd);
+    }
+
+    function convertValues(from, to) {
+      if (from === to) return;
+      var rate = parseNum(inputs.exchange.value);
+      if (rate <= 0) return;
+      var factor = (from === 'USD' && to === 'BRL') ? rate : (1 / rate);
+      if (inputs.unit.value.trim() !== '') inputs.unit.value = toInputValue(parseNum(inputs.unit.value) * factor, 4);
+      if (inputs.freight.value.trim() !== '') inputs.freight.value = toInputValue(parseNum(inputs.freight.value) * factor, 2);
+      if (inputs.insurance.value.trim() !== '') inputs.insurance.value = toInputValue(parseNum(inputs.insurance.value) * factor, 2);
+    }
+
+    function setCurrency(cur, convert) {
+      var next = cur === 'BRL' ? 'BRL' : 'USD';
+      if (next !== currency && convert) convertValues(currency, next);
+      currency = next;
+
+      Array.prototype.forEach.call(curButtons, function (b) {
+        var active = b.getAttribute('data-currency') === currency;
+        b.classList.toggle('bg-card', active);
+        b.classList.toggle('text-ink', active);
+        b.classList.toggle('shadow-sm', active);
+        b.classList.toggle('text-muted', !active);
+      });
+
+      var symbol = currency === 'USD' ? 'US$' : 'R$';
+      document.querySelectorAll('.currency-prefix').forEach(function (s) { s.textContent = symbol; });
+      el('unitLabel').textContent = 'Valor unitário (' + symbol + ')';
+      updateCurrencyControls();
+    }
+
+    Array.prototype.forEach.call(curButtons, function (btn) {
+      btn.addEventListener('click', function () {
+        setCurrency(btn.getAttribute('data-currency'), true);
+        calculate();
+      });
+    });
+
+    el('copyBtn').addEventListener('click', function () {
+      var r = calculate();
+      var lines = [
+        'RESUMO DA IMPORTAÇÃO — Regime de Tributação Simplificada (RTS)',
+        '------------------------------------------------------------',
+        'Valor unitário: ' + (currency === 'USD' ? formatUSD(r.unit) : formatBRL(r.unit)),
+        'Quantidade: ' + r.qty.toLocaleString('pt-BR') + ' peças',
+        'Subtotal: ' + (currency === 'USD' ? formatUSD(r.subtotal) : formatBRL(r.subtotal)),
+        'Frete internacional: ' + (currency === 'USD' ? formatUSD(r.freight) : formatBRL(r.freight)),
+        'Seguro internacional: ' + (currency === 'USD' ? formatUSD(r.insurance) : formatBRL(r.insurance)),
+        (currency === 'USD' ? 'Taxa de câmbio: R$ ' + r.rate.toFixed(2).replace('.', ',') : 'Taxa de câmbio: não aplicável (valores digitados em R$)'),
+        '------------------------------------------------------------',
+        'Valor aduaneiro (CIF): ' + formatBRL(r.cif),
+        'Imposto de Importação (' + r.iiRate + '%): ' + formatBRL(r.ii),
+        'ICMS (' + r.icmsRate + '%): ' + formatBRL(r.icms),
+        'Total de tributos: ' + formatBRL(r.totalTaxes),
+        'Custo total da importação: ' + formatBRL(r.totalCost),
+        'Custo unitário por peça: ' + formatBRL(r.unitCost),
+        'Carga tributária: ' + formatPct(r.taxBurden),
+        '------------------------------------------------------------',
+        'Distribuição: VA ' + formatPct(r.pctVA) + ' | II ' + formatPct(r.pctII) + ' | ICMS ' + formatPct(r.pctICMS)
+      ];
+      var text = lines.join('\n');
+
+      var done = function () {
+        var fb = el('copyFeedback');
+        fb.style.opacity = '1';
+        fb.textContent = 'Resumo copiado!';
+        setTimeout(function () { fb.style.opacity = '0'; }, 1800);
+      };
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+      } else {
+        fallbackCopy(text, done);
+      }
+    });
+
+    function fallbackCopy(text, cb) {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+      if (cb) cb();
+    }
+
+    el('clearBtn').addEventListener('click', function () {
+      inputs.unit.value = '';
+      inputs.qty.value = '';
+      inputs.freight.value = '';
+      inputs.insurance.value = '';
+      inputs.exchange.value = '';
+      calculate();
+    });
+
+    var feedbackTimer;
+    function showFeedback(msg, ok) {
+      var fb = el('copyFeedback');
+      fb.textContent = msg;
+      fb.className = 'text-center text-xs h-4 transition-opacity ' + (ok === false ? 'text-rose-500' : 'text-emerald-500');
+      fb.style.opacity = '1';
+      clearTimeout(feedbackTimer);
+      feedbackTimer = setTimeout(function () { fb.style.opacity = '0'; }, 2200);
+    }
+
+    el('fetchRateBtn').addEventListener('click', function () {
+      var btn = el('fetchRateBtn');
+      var hint = el('rateHint');
+      btn.disabled = true;
+      btn.textContent = '...';
+      hint.textContent = 'Consultando cotação...';
+      hint.className = 'text-xs text-faint mt-1 h-4';
+
+      fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL')
+        .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+        .then(function (data) {
+          var rate = parseFloat(data.USDBRL && data.USDBRL.bid);
+          if (!rate) throw new Error('sem dados');
+          inputs.exchange.value = rate.toFixed(4).replace('.', ',');
+          var d = new Date();
+          hint.textContent = 'Cotação atualizada ' + d.toLocaleTimeString('pt-BR') + ' (fonte: AwesomeAPI).';
+          hint.className = 'text-xs text-emerald-500 mt-1 h-4';
+          calculate();
+        })
+        .catch(function () {
+          hint.textContent = 'Não foi possível buscar a cotação. Informe manualmente.';
+          hint.className = 'text-xs text-rose-500 mt-1 h-4';
+        })
+        .finally(function () {
+          btn.disabled = currency !== 'USD';
+          btn.textContent = 'Buscar';
+        });
+    });
+
+    var STORAGE_KEY = 'sellify_history_v1';
+
+    function getHistory() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+      catch (e) { return []; }
+    }
+    function setHistory(list) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch (e) {}
+      renderHistory();
+    }
+
+    function renderHistory() {
+      var list = getHistory();
+      var card = el('historyCard');
+      var ul = el('historyList');
+      list = Array.isArray(list) ? list.filter(function (i) { return i && typeof i === 'object'; }) : [];
+      if (!list.length) { card.classList.add('hidden'); return; }
+      card.classList.remove('hidden');
+      ul.innerHTML = '';
+      list.forEach(function (item) {
+        var totalCost = Number(item.totalCost); if (!isFinite(totalCost)) totalCost = 0;
+        var taxBurden = Number(item.taxBurden); if (!isFinite(taxBurden)) taxBurden = 0;
+        var qty = Number(item.qty); if (!isFinite(qty)) qty = 0;
+
+        var li = document.createElement('li');
+        li.className = 'flex items-center justify-between gap-3 rounded-lg border border-line bg-inset px-3 py-2.5';
+
+        var info = document.createElement('div');
+        info.className = 'min-w-0';
+        var p1 = document.createElement('p');
+        p1.className = 'num text-sm font-semibold text-ink truncate';
+        p1.textContent = formatBRL(totalCost) + ' ';
+        var span = document.createElement('span');
+        span.className = 'text-xs font-normal text-faint';
+        span.textContent = '· ' + qty.toLocaleString('pt-BR') + ' un';
+        p1.appendChild(span);
+        var p2 = document.createElement('p');
+        p2.className = 'text-xs text-faint';
+        p2.textContent = (item.date ? String(item.date) : '') + ' · carga ' + formatPct(taxBurden);
+        info.appendChild(p1);
+        info.appendChild(p2);
+
+        var actions = document.createElement('div');
+        actions.className = 'flex gap-1 shrink-0';
+        var loadBtn = document.createElement('button');
+        loadBtn.type = 'button';
+        loadBtn.className = 'text-xs font-medium text-accent hover:underline px-1';
+        loadBtn.textContent = 'Carregar';
+        loadBtn.dataset.load = String(item.id || '');
+        var delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'text-xs font-medium text-rose-500 hover:underline px-1';
+        delBtn.textContent = 'Excluir';
+        delBtn.dataset.del = String(item.id || '');
+        actions.appendChild(loadBtn);
+        actions.appendChild(delBtn);
+
+        li.appendChild(info);
+        li.appendChild(actions);
+        ul.appendChild(li);
+      });
+    }
+
+    el('saveBtn').addEventListener('click', function () {
+      var r = calculate();
+      if (r.totalCost <= 0) { showFeedback('Nada para salvar.', false); return; }
+      var list = getHistory();
+      list.unshift({
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        date: new Date().toLocaleString('pt-BR'),
+        currency: currency,
+        exchange: inputs.exchange.value, unit: inputs.unit.value, qty: inputs.qty.value,
+        freight: inputs.freight.value, insurance: inputs.insurance.value,
+        iiRate: inputs.iiRate.value, icmsRate: inputs.icmsRate.value,
+        totalCost: r.totalCost, taxBurden: r.taxBurden, unitCost: r.unitCost
+      });
+      setHistory(list.slice(0, 30));
+      showFeedback('Simulação salva!');
+    });
+
+    el('historyList').addEventListener('click', function (e) {
+      var loadId = e.target.getAttribute && e.target.getAttribute('data-load');
+      var delId = e.target.getAttribute && e.target.getAttribute('data-del');
+      if (loadId) {
+        var item = getHistory().filter(function (i) { return i.id === loadId; })[0];
+        if (!item) return;
+        setCurrency(item.currency, false);
+        ['exchange', 'unit', 'qty', 'freight', 'insurance', 'iiRate', 'icmsRate'].forEach(function (k) {
+          inputs[k].value = item[k] != null ? String(item[k]) : '';
+        });
+        calculate();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else if (delId) {
+        setHistory(getHistory().filter(function (i) { return i.id !== delId; }));
+      }
+    });
+
+    el('clearHistoryBtn').addEventListener('click', function () {
+      if (confirm('Apagar todo o histórico de simulações?')) setHistory([]);
+    });
+
+    el('pdfBtn').addEventListener('click', function () {
+      var r = calculate();
+      if (r.totalCost <= 0) { showFeedback('Preencha os dados para exportar.', false); return; }
+      var money = function (v) { return currency === 'USD' ? formatUSD(v) : formatBRL(v); };
+      var rows = [
+        ['Valor unitário', money(r.unit)],
+        ['Quantidade', r.qty.toLocaleString('pt-BR') + ' peças'],
+        ['Subtotal', money(r.subtotal)],
+        ['Frete internacional', money(r.freight)],
+        ['Seguro internacional', money(r.insurance)]
+      ];
+      if (currency === 'USD') rows.push(['Taxa de câmbio', 'R$ ' + r.rate.toFixed(4).replace('.', ',')]);
+      rows = rows.concat([
+        ['Valor aduaneiro (CIF)', formatBRL(r.cif)],
+        ['Imposto de Importação (' + r.iiRate + '%)', formatBRL(r.ii)],
+        ['ICMS (' + r.icmsRate + '%)', formatBRL(r.icms)],
+        ['Total de tributos', formatBRL(r.totalTaxes)],
+        ['Custo total da importação', formatBRL(r.totalCost)],
+        ['Custo unitário por peça', formatBRL(r.unitCost)],
+        ['Carga tributária', formatPct(r.taxBurden)],
+        ['Distribuição — VA / II / ICMS', formatPct(r.pctVA) + ' / ' + formatPct(r.pctII) + ' / ' + formatPct(r.pctICMS)]
+      ]);
+      var body = rows.map(function (row) {
+        return '<tr><td style="color:#475569">' + row[0] + '</td><td style="text-align:right;font-weight:600">' + row[1] + '</td></tr>';
+      }).join('');
+      el('printArea').innerHTML =
+        '<h1 style="font-size:20px;font-weight:800;margin-bottom:2px">Resumo da Importação</h1>' +
+        '<p style="font-size:12px;color:#64748b;margin-bottom:16px">Regime de Tributação Simplificada (RTS) — ' +
+          new Date().toLocaleString('pt-BR') + '</p>' +
+        '<h2 style="font-size:28px;font-weight:800;margin:10px 0 18px">' + formatBRL(r.totalCost) + '</h2>' +
+        '<table>' + body + '</table>' +
+        '<p style="font-size:11px;color:#94a3b8;margin-top:18px">Valores informativos. Confirme alíquotas e legislação vigente. Desenvolvido por IA — idealizado por Kenety Motta. Contato: kenety.rauny432@gmail.com · WhatsApp (16) 99230-5391.</p>';
+      window.print();
+    });
+
+    restoreState();
+    setCurrency(currency, false);
+    calculate();
+    renderHistory();
+  })();
+  </script>
+</body>
+</html>
